@@ -280,7 +280,7 @@ One has to go forever: rice or meat?"></textarea>
             showStatus(`Sending ${posts.length} posts to Notion...`, 'loading');
             
             try {
-                const response = await fetch('/api/add-posts', {
+                const response = await fetch('add_posts.php', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
