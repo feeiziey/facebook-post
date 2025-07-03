@@ -31,26 +31,53 @@ app.post('/api/add-posts', async (req, res) => {
             if (!post) continue;
             
             try {
+                // First, get database schema to find the correct property names
+                const database = await notion.databases.retrieve({ database_id: databaseId });
+                const properties = database.properties;
+                
+                // Find the title property (usually the first one or named something like Name, Title, Post, etc.)
+                let titleProperty = null;
+                let statusProperty = null;
+                
+                for (const [propName, propConfig] of Object.entries(properties)) {
+                    if (propConfig.type === 'title') {
+                        titleProperty = propName;
+                    }
+                    if (propConfig.type === 'status') {
+                        statusProperty = propName;
+                    }
+                }
+                
+                if (!titleProperty) {
+                    throw new Error('No title property found in database');
+                }
+                
+                const pageProperties = {
+                    [titleProperty]: {
+                        title: [
+                            {
+                                text: {
+                                    content: post
+                                }
+                            }
+                        ]
+                    }
+                };
+                
+                // Add status if it exists
+                if (statusProperty) {
+                    pageProperties[statusProperty] = {
+                        status: {
+                            name: 'Pending'
+                        }
+                    };
+                }
+                
                 const response = await notion.pages.create({
                     parent: {
                         database_id: databaseId
                     },
-                    properties: {
-                        'Post': {
-                            title: [
-                                {
-                                    text: {
-                                        content: post
-                                    }
-                                }
-                            ]
-                        },
-                        'Status': {
-                            status: {
-                                name: 'Pending'
-                            }
-                        }
-                    }
+                    properties: pageProperties
                 });
                 
                 results.push({ success: true, post: post.substring(0, 50) + '...' });
