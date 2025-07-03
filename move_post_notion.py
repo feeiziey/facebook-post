@@ -8,10 +8,16 @@ queue_db = os.environ["NOTION_QUEUE_DB_ID"]
 
 try:
     # Get the first unposted post from Bank
-    print("Fetching posts from Bank database...")
+    print("Fetching unposted posts from Bank database...")
     results = notion.databases.query(
         database_id=bank_db,
         page_size=1,
+        filter={
+            "property": "Posted",
+            "checkbox": {
+                "equals": False
+            }
+        },
         sorts=[
             {
                 "timestamp": "created_time",
@@ -21,7 +27,7 @@ try:
     )
     
     if not results["results"]:
-        print("No posts left in Bank database.")
+        print("No unposted posts left in Bank database.")
         exit(0)
 
     post = results["results"][0]
@@ -73,11 +79,15 @@ try:
         ]
     )
 
-    # Delete from Bank database
-    print("Removing post from Bank database...")
+    # Mark as posted in Bank database
+    print("Marking post as posted in Bank database...")
     notion.pages.update(
         page_id=post["id"],
-        archived=True
+        properties={
+            "Posted": {
+                "checkbox": True
+            }
+        }
     )
 
     print(f"Successfully moved post: {content_text[:100]}...")
