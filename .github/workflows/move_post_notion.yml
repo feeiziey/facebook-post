@@ -1,0 +1,35 @@
+name: Move Notion Post to Queue
+
+on:
+  schedule:
+    - cron: '0 * * * *'  # Run every hour
+    # Other schedule options:
+    # - cron: '0 */2 * * *'  # Every 2 hours
+    # - cron: '0 9,15,21 * * *'  # 3 times daily (9am, 3pm, 9pm UTC)
+    # - cron: '0 12 * * *'  # Once daily at noon UTC
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  move_post:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install notion-client
+
+      - name: Move post from Bank to Queue
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          NOTION_BANK_DB_ID: ${{ secrets.NOTION_BANK_DB_ID }}
+          NOTION_QUEUE_DB_ID: ${{ secrets.NOTION_QUEUE_DB_ID }}
+        run: python move_post_notion.py 
