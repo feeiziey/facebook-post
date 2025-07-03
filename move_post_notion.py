@@ -55,8 +55,8 @@ try:
 
     print(f"Found post: {content_text[:50]}...")
 
-    # Update the Queue database row with new post content
-    print("Updating Queue database with new post...")
+    # Add comment to the Queue database (single row)
+    print("Adding comment to Queue database...")
     
     # First, get the single row in the Queue database
     queue_results = notion.databases.query(database_id=queue_db, page_size=1)
@@ -67,20 +67,16 @@ try:
     
     queue_page_id = queue_results["results"][0]["id"]
     
-    # Update the Queue row with new post content
-    notion.pages.update(
-        page_id=queue_page_id,
-        properties={
-            "Post": {
-                "rich_text": [
-                    {
-                        "text": {
-                            "content": content_text
-                        }
-                    }
-                ]
+    # Add comment to the Queue row
+    notion.comments.create(
+        parent={"page_id": queue_page_id},
+        rich_text=[
+            {
+                "text": {
+                    "content": content_text
+                }
             }
-        }
+        ]
     )
 
     # Mark as posted in Bank database
