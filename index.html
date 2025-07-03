@@ -168,6 +168,41 @@
             border-left: 4px solid #4facfe;
         }
         
+        .cors-fallback {
+            text-align: left;
+        }
+        
+        .alternative {
+            background: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        
+        .alternative h4 {
+            margin-top: 0;
+            color: #007bff;
+        }
+        
+        .posts-list {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 10px;
+            background: white;
+        }
+        
+        .post-item {
+            padding: 5px 0;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .post-item:last-child {
+            border-bottom: none;
+        }
+        
         @media (max-width: 768px) {
             .input-group {
                 grid-template-columns: 1fr;
@@ -387,11 +422,126 @@ One has to go forever: rice or meat?"></textarea>
                 
             } catch (error) {
                 console.error('Error:', error);
-                showStatus(`❌ Error: ${error.message}`, 'error');
+                
+                // If it's a CORS error, provide alternative solution
+                if (error.message.includes('CORS') || error.message.includes('fetch')) {
+                    showCORSFallback(token, databaseId, posts);
+                } else {
+                    showStatus(`❌ Error: ${error.message}`, 'error');
+                }
             } finally {
                 btn.disabled = false;
                 btn.textContent = '🚀 Send to Notion Bank';
             }
+        }
+        
+        function showCORSFallback(token, databaseId, posts) {
+            const status = document.getElementById('status');
+            status.innerHTML = `
+                <div class="cors-fallback">
+                    <h3>⚠️ CORS Error - Alternative Solution</h3>
+                    <p>GitHub Pages blocks direct API calls. Here are two alternatives:</p>
+                    
+                    <div class="alternative">
+                        <h4>Option 1: Use Browser Console</h4>
+                        <p>Copy this code and paste it in your browser's console (F12):</p>
+                        <textarea readonly onclick="this.select()" style="width: 100%; height: 200px; font-family: monospace; font-size: 12px;">${generateConsoleCode(token, databaseId, posts)}</textarea>
+                        <button onclick="copyToClipboard('${generateConsoleCode(token, databaseId, posts).replace(/'/g, "\\'")}')">Copy Code</button>
+                    </div>
+                    
+                    <div class="alternative">
+                        <h4>Option 2: Manual Addition</h4>
+                        <p>Add these posts manually to your Notion database:</p>
+                        <div class="posts-list">
+                            ${posts.map((post, i) => `<div class="post-item">${i + 1}. ${post}</div>`).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+            status.className = 'status error';
+            status.style.display = 'block';
+        }
+        
+        function generateConsoleCode(token, databaseId, posts) {
+            return `
+// Notion Bulk Post Adder - Paste this in browser console
+const token = '${token}';
+const databaseId = '${databaseId}';
+const posts = ${JSON.stringify(posts)};
+
+async function addPostsToNotion() {
+    console.log('Adding', posts.length, 'posts to Notion...');
+    
+    // Get database schema
+    const schemaResponse = await fetch(\`https://api.notion.com/v1/databases/\${databaseId}\`, {
+        headers: {
+            'Authorization': \`Bearer \${token}\`,
+            'Content-Type': 'application/json',
+            'Notion-Version': '2022-06-28'
+        }
+    });
+    
+    const database = await schemaResponse.json();
+    const properties = database.properties;
+    
+    let titleProperty = null;
+    let statusProperty = null;
+    
+    for (const [propName, propConfig] of Object.entries(properties)) {
+        if (propConfig.type === 'title') titleProperty = propName;
+        if (propConfig.type === 'status') statusProperty = propName;
+    }
+    
+    let successCount = 0;
+    
+    for (let i = 0; i < posts.length; i++) {
+        const post = posts[i].trim();
+        if (!post) continue;
+        
+        console.log(\`Adding post \${i + 1}/\${posts.length}: \${post.substring(0, 50)}...\`);
+        
+        const pageProperties = {
+            [titleProperty]: {
+                title: [{ text: { content: post } }]
+            }
+        };
+        
+        if (statusProperty) {
+            pageProperties[statusProperty] = { status: { name: 'Pending' } };
+        }
+        
+        const response = await fetch('https://api.notion.com/v1/pages', {
+            method: 'POST',
+            headers: {
+                'Authorization': \`Bearer \${token}\`,
+                'Content-Type': 'application/json',
+                'Notion-Version': '2022-06-28'
+            },
+            body: JSON.stringify({
+                parent: { database_id: databaseId },
+                properties: pageProperties
+            })
+        });
+        
+        if (response.ok) {
+            successCount++;
+        } else {
+            console.error('Failed to add post:', await response.text());
+        }
+        
+        await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    
+    console.log(\`✅ Successfully added \${successCount}/\${posts.length} posts!\`);
+}
+
+addPostsToNotion();`.trim();
+        }
+        
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                alert('Code copied to clipboard!');
+            });
         }
     </script>
 </body>
