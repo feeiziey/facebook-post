@@ -7,15 +7,15 @@ bank_db = os.environ["NOTION_BANK_DB_ID"]
 queue_db = os.environ["NOTION_QUEUE_DB_ID"]
 
 try:
-    # Get the first unposted post from Bank
-    print("Fetching unposted posts from Bank database...")
+    # Get the first pending post from Bank
+    print("Fetching pending posts from Bank database...")
     results = notion.databases.query(
         database_id=bank_db,
         page_size=1,
         filter={
-            "property": "Posted",
-            "checkbox": {
-                "equals": False
+            "property": "Status",
+            "status": {
+                "does_not_equal": "Posted"
             }
         },
         sorts=[
@@ -27,7 +27,7 @@ try:
     )
     
     if not results["results"]:
-        print("No unposted posts left in Bank database.")
+        print("No pending posts left in Bank database.")
         exit(0)
 
     post = results["results"][0]
@@ -84,8 +84,10 @@ try:
     notion.pages.update(
         page_id=post["id"],
         properties={
-            "Posted": {
-                "checkbox": True
+            "Status": {
+                "status": {
+                    "name": "Posted"
+                }
             }
         }
     )
