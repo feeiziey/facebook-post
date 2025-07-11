@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Stable Horde Image Generation Script for Facebook Posts
-Processes pending picture posts from Notion and generates images using Stable Horde API
+Hugging Face Image Generation Script for Facebook Posts
+Processes pending picture posts from Notion and generates images using Hugging Face Inference API
 """
 
 import os
@@ -10,15 +10,19 @@ import json
 import time
 import base64
 from datetime import datetime
+from io import BytesIO
 
 # Configuration
 NOTION_TOKEN = os.environ.get('NOTION_TOKEN')
 NOTION_BANK_DB_ID = '229bc30eae8c803bac1be32cc42ee186'  # Correct database ID
-STABLE_HORDE_API_KEY = os.environ.get('STABLE_HORDE_API_KEY', '1M0A2GKu0dWMXpVB0ah9gw')
+HUGGINGFACE_TOKEN = os.environ.get('HUGGINGFACE_TOKEN')
 GITHUB_TOKEN = os.environ.get('GITHUB_TOKEN')
 
 # GitHub repository info (auto-detect from environment)
 GITHUB_REPO = os.environ.get('GITHUB_REPOSITORY', 'feeiziey/facebook-post')
+
+# Hugging Face model endpoint
+HF_MODEL_URL = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0"
 
 # Headers for Notion API
 notion_headers = {
@@ -27,9 +31,9 @@ notion_headers = {
     'Notion-Version': '2022-06-28'
 }
 
-# Headers for Stable Horde API
-horde_headers = {
-    'apikey': STABLE_HORDE_API_KEY,
+# Headers for Hugging Face API
+hf_headers = {
+    'Authorization': f'Bearer {HUGGINGFACE_TOKEN}',
     'Content-Type': 'application/json'
 }
 
@@ -89,123 +93,64 @@ def get_pending_picture_posts():
         print(f"❌ Error querying Notion: {response.status_code} - {response.text}")
         return []
 
-def submit_to_stable_horde(prompt):
-    """Submit image generation request to Stable Horde"""
-    print(f"🎨 Submitting to Stable Horde: {prompt[:50]}...")
+def generate_image_with_huggingface(prompt):
+    """Generate image using Hugging Face Inference API"""
+    print(f"🎨 Generating image with Hugging Face: {prompt[:50]}...")
     
     payload = {
-        "prompt": prompt,
-        "params": {
-            "width": 512,
-            "height": 512,
-            "steps": 30,
-            "cfg_scale": 7.5,
-            "sampler_name": "k_euler_a"
-        },
-        "nsfw": False,
-        "trusted_workers": True,
-        "models": ["stable_diffusion"]
+        "inputs": prompt,
+        "parameters": {
+            "num_inference_steps": 30,
+            "guidance_scale": 7.5,
+            "width": 1024,
+            "height": 1024
+        }
     }
     
     try:
         response = requests.post(
-            'https://stablehorde.net/api/v2/generate/async',
-            headers=horde_headers,
+            HF_MODEL_URL,
+            headers=hf_headers,
             json=payload,
-            timeout=30
+            timeout=60
         )
         
-        if response.status_code == 202:
-            data = response.json()
-            request_id = data['id']
-            print(f"✅ Request submitted with ID: {request_id}")
-            return request_id
+        if response.status_code == 200:
+            print("✅ Image generated successfully!")
+            return response.content
+        elif response.status_code == 503:
+            # Model is loading, wait and retry
+            print("⏳ Model is loading, waiting 20 seconds...")
+            time.sleep(20)
+            return generate_image_with_huggingface(prompt)
         else:
-            print(f"❌ Error submitting to Stable Horde: {response.status_code} - {response.text}")
+            print(f"❌ Error generating image: {response.status_code} - {response.text}")
             return None
     except requests.exceptions.ConnectionError as e:
-        print(f"❌ Connection error to Stable Horde: {e}")
-        print("🔄 This might be a temporary network issue. Will retry later.")
+        print(f"❌ Connection error to Hugging Face: {e}")
         return None
     except requests.exceptions.Timeout as e:
-        print(f"❌ Timeout connecting to Stable Horde: {e}")
+        print(f"❌ Timeout connecting to Hugging Face: {e}")
         return None
     except Exception as e:
         print(f"❌ Unexpected error: {e}")
         return None
 
-def check_generation_status(request_id):
-    """Check the status of image generation"""
-    try:
-        response = requests.get(
-            f'https://stablehorde.net/api/v2/generate/check/{request_id}',
-            headers=horde_headers,
-            timeout=30
-        )
-        
-        if response.status_code == 200:
-            data = response.json()
-            return data
-        else:
-            print(f"❌ Error checking status: {response.status_code} - {response.text}")
-            return None
-    except requests.exceptions.ConnectionError as e:
-        print(f"❌ Connection error checking status: {e}")
-        return None
-    except Exception as e:
-        print(f"❌ Error checking status: {e}")
-        return None
-
-def get_generated_image(request_id):
-    """Get the generated image from Stable Horde"""
-    try:
-        response = requests.get(
-            f'https://stablehorde.net/api/v2/generate/status/{request_id}',
-            headers=horde_headers,
-            timeout=30
-        )
-        
-        if response.status_code == 200:
-            data = response.json()
-            if data.get('done') and data.get('generations'):
-                image_url = data['generations'][0]['img']
-                print(f"🖼️ Image ready: {image_url}")
-                return image_url
-            return None
-        else:
-            print(f"❌ Error getting image: {response.status_code} - {response.text}")
-            return None
-    except requests.exceptions.ConnectionError as e:
-        print(f"❌ Connection error getting image: {e}")
-        return None
-    except Exception as e:
-        print(f"❌ Error getting image: {e}")
-        return None
-
-def upload_image_to_github(image_url, filename):
-    """Download image and upload to GitHub repository"""
-    print(f"📤 Uploading image to GitHub: {filename}")
-    
-    # Download image
-    img_response = requests.get(image_url)
-    if img_response.status_code != 200:
-        print(f"❌ Failed to download image from {image_url}")
-        return None
-    
-    # Encode image as base64
-    image_content = base64.b64encode(img_response.content).decode('utf-8')
+def save_image_locally(image_data, filename):
+    """Save image data to local file and return GitHub URL"""
+    print(f"💾 Saving image locally: {filename}")
     
     # Create images directory if it doesn't exist
     os.makedirs('images', exist_ok=True)
     
-    # Save locally first
+    # Save locally
     local_path = f'images/{filename}'
     with open(local_path, 'wb') as f:
-        f.write(img_response.content)
+        f.write(image_data)
     
     # Return the GitHub URL where the image will be accessible
     github_url = f'https://raw.githubusercontent.com/{GITHUB_REPO}/master/images/{filename}'
-    print(f"✅ Image will be available at: {github_url}")
+    print(f"✅ Image saved locally and will be available at: {github_url}")
     return github_url
 
 def update_notion_record(record_id, image_url):
@@ -240,33 +185,38 @@ def update_notion_record(record_id, image_url):
         return False
 
 def test_connectivity():
-    """Test connectivity to Stable Horde API"""
+    """Test connectivity to Hugging Face API"""
     try:
-        response = requests.get('https://stablehorde.net/api/v2/status/heartbeat', timeout=10)
-        if response.status_code == 200:
-            print("✅ Stable Horde API is accessible")
+        # Test with a simple request
+        test_payload = {"inputs": "test"}
+        response = requests.post(HF_MODEL_URL, headers=hf_headers, json=test_payload, timeout=10)
+        if response.status_code in [200, 503]:  # 503 means model is loading, which is fine
+            print("✅ Hugging Face API is accessible")
             return True
         else:
-            print(f"⚠️ Stable Horde API returned status {response.status_code}")
+            print(f"⚠️ Hugging Face API returned status {response.status_code}")
             return False
     except Exception as e:
-        print(f"❌ Cannot reach Stable Horde API: {e}")
+        print(f"❌ Cannot reach Hugging Face API: {e}")
         return False
 
 def main():
     """Main execution function"""
-    print("🚀 Starting Stable Horde Image Generation Process")
+    print("🚀 Starting Hugging Face Image Generation Process")
     print(f"📅 {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     
     if not NOTION_TOKEN:
         print("❌ NOTION_TOKEN environment variable not set")
         return
     
+    if not HUGGINGFACE_TOKEN:
+        print("❌ HUGGINGFACE_TOKEN environment variable not set")
+        return
+    
     # Test connectivity first
     if not test_connectivity():
-        print("🔄 Stable Horde API is not accessible. This might be temporary.")
+        print("🔄 Hugging Face API is not accessible. This might be temporary.")
         print("📋 Will still check for pending posts and exit gracefully.")
-        # Don't return here - still check Notion to show what posts are pending
     
     # Get pending picture posts
     posts = get_pending_picture_posts()
@@ -281,46 +231,18 @@ def main():
         print(f"Caption: {post['caption']}")
         print(f"Prompt: {post['prompt']}")
         
-        # Submit to Stable Horde
-        request_id = submit_to_stable_horde(post['prompt'])
-        if not request_id:
-            print(f"⏭️ Skipping post {i} due to submission error")
-            continue
-        
-        # Poll for completion (max 10 minutes)
-        print("⏳ Waiting for image generation...")
-        max_wait = 600  # 10 minutes
-        wait_time = 0
-        
-        while wait_time < max_wait:
-            status = check_generation_status(request_id)
-            if status:
-                if status.get('done'):
-                    print("🎉 Image generation completed!")
-                    break
-                else:
-                    queue_position = status.get('queue_position', 'unknown')
-                    wait_time_left = status.get('wait_time', 'unknown')
-                    print(f"⏳ Queue position: {queue_position}, Wait time: {wait_time_left}s")
-            
-            time.sleep(30)  # Check every 30 seconds
-            wait_time += 30
-        
-        if wait_time >= max_wait:
-            print("⏰ Timeout waiting for image generation")
-            continue
-        
-        # Get the generated image
-        image_url = get_generated_image(request_id)
-        if not image_url:
+        # Generate image with Hugging Face
+        image_data = generate_image_with_huggingface(post['prompt'])
+        if not image_data:
+            print(f"⏭️ Skipping post {i} due to generation error")
             continue
         
         # Generate filename
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         filename = f'generated_{timestamp}_{i}.png'
         
-        # Upload to GitHub
-        github_url = upload_image_to_github(image_url, filename)
+        # Save image locally and get GitHub URL
+        github_url = save_image_locally(image_data, filename)
         if not github_url:
             continue
         
@@ -328,6 +250,11 @@ def main():
         update_notion_record(post['id'], github_url)
         
         print(f"✅ Successfully processed post {i}")
+        
+        # Add a small delay between requests to be respectful to the API
+        if i < len(posts):
+            print("⏳ Waiting 5 seconds before next request...")
+            time.sleep(5)
     
     print(f"\n🎯 Completed processing {len(posts)} posts")
 
