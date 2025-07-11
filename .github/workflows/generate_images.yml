@@ -24,8 +24,11 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install requests
+          # Test DNS resolution
+          nslookup stablehorde.ai || echo "DNS resolution failed, but continuing..."
 
       - name: Generate images for pending picture posts
+        continue-on-error: true
         env:
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
           NOTION_BANK_DB_ID: ${{ secrets.NOTION_BANK_DB_ID }}
@@ -34,10 +37,11 @@ jobs:
         run: python generate_images.py
 
       - name: Commit and push generated images
+        continue-on-error: true
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git add images/
+          git add images/ || echo "No images directory found"
           if git diff --staged --quiet; then
             echo "No new images to commit"
           else

@@ -107,51 +107,79 @@ def submit_to_stable_horde(prompt):
         "models": ["stable_diffusion"]
     }
     
-    response = requests.post(
-        'https://stablehorde.ai/api/v2/generate/async',
-        headers=horde_headers,
-        json=payload
-    )
-    
-    if response.status_code == 202:
-        data = response.json()
-        request_id = data['id']
-        print(f"✅ Request submitted with ID: {request_id}")
-        return request_id
-    else:
-        print(f"❌ Error submitting to Stable Horde: {response.status_code} - {response.text}")
+    try:
+        response = requests.post(
+            'https://stablehorde.ai/api/v2/generate/async',
+            headers=horde_headers,
+            json=payload,
+            timeout=30
+        )
+        
+        if response.status_code == 202:
+            data = response.json()
+            request_id = data['id']
+            print(f"✅ Request submitted with ID: {request_id}")
+            return request_id
+        else:
+            print(f"❌ Error submitting to Stable Horde: {response.status_code} - {response.text}")
+            return None
+    except requests.exceptions.ConnectionError as e:
+        print(f"❌ Connection error to Stable Horde: {e}")
+        print("🔄 This might be a temporary network issue. Will retry later.")
+        return None
+    except requests.exceptions.Timeout as e:
+        print(f"❌ Timeout connecting to Stable Horde: {e}")
+        return None
+    except Exception as e:
+        print(f"❌ Unexpected error: {e}")
         return None
 
 def check_generation_status(request_id):
     """Check the status of image generation"""
-    response = requests.get(
-        f'https://stablehorde.ai/api/v2/generate/check/{request_id}',
-        headers=horde_headers
-    )
-    
-    if response.status_code == 200:
-        data = response.json()
-        return data
-    else:
-        print(f"❌ Error checking status: {response.status_code} - {response.text}")
+    try:
+        response = requests.get(
+            f'https://stablehorde.ai/api/v2/generate/check/{request_id}',
+            headers=horde_headers,
+            timeout=30
+        )
+        
+        if response.status_code == 200:
+            data = response.json()
+            return data
+        else:
+            print(f"❌ Error checking status: {response.status_code} - {response.text}")
+            return None
+    except requests.exceptions.ConnectionError as e:
+        print(f"❌ Connection error checking status: {e}")
+        return None
+    except Exception as e:
+        print(f"❌ Error checking status: {e}")
         return None
 
 def get_generated_image(request_id):
     """Get the generated image from Stable Horde"""
-    response = requests.get(
-        f'https://stablehorde.ai/api/v2/generate/status/{request_id}',
-        headers=horde_headers
-    )
-    
-    if response.status_code == 200:
-        data = response.json()
-        if data.get('done') and data.get('generations'):
-            image_url = data['generations'][0]['img']
-            print(f"🖼️ Image ready: {image_url}")
-            return image_url
+    try:
+        response = requests.get(
+            f'https://stablehorde.ai/api/v2/generate/status/{request_id}',
+            headers=horde_headers,
+            timeout=30
+        )
+        
+        if response.status_code == 200:
+            data = response.json()
+            if data.get('done') and data.get('generations'):
+                image_url = data['generations'][0]['img']
+                print(f"🖼️ Image ready: {image_url}")
+                return image_url
+            return None
+        else:
+            print(f"❌ Error getting image: {response.status_code} - {response.text}")
+            return None
+    except requests.exceptions.ConnectionError as e:
+        print(f"❌ Connection error getting image: {e}")
         return None
-    else:
-        print(f"❌ Error getting image: {response.status_code} - {response.text}")
+    except Exception as e:
+        print(f"❌ Error getting image: {e}")
         return None
 
 def upload_image_to_github(image_url, filename):
@@ -207,6 +235,20 @@ def update_notion_record(record_id, image_url):
         print(f"❌ Error updating Notion: {response.status_code} - {response.text}")
         return False
 
+def test_connectivity():
+    """Test connectivity to Stable Horde API"""
+    try:
+        response = requests.get('https://stablehorde.ai/api/v2/status/heartbeat', timeout=10)
+        if response.status_code == 200:
+            print("✅ Stable Horde API is accessible")
+            return True
+        else:
+            print(f"⚠️ Stable Horde API returned status {response.status_code}")
+            return False
+    except Exception as e:
+        print(f"❌ Cannot reach Stable Horde API: {e}")
+        return False
+
 def main():
     """Main execution function"""
     print("🚀 Starting Stable Horde Image Generation Process")
@@ -215,6 +257,12 @@ def main():
     if not NOTION_TOKEN:
         print("❌ NOTION_TOKEN environment variable not set")
         return
+    
+    # Test connectivity first
+    if not test_connectivity():
+        print("🔄 Stable Horde API is not accessible. This might be temporary.")
+        print("📋 Will still check for pending posts and exit gracefully.")
+        # Don't return here - still check Notion to show what posts are pending
     
     # Get pending picture posts
     posts = get_pending_picture_posts()
@@ -232,6 +280,7 @@ def main():
         # Submit to Stable Horde
         request_id = submit_to_stable_horde(post['prompt'])
         if not request_id:
+            print(f"⏭️ Skipping post {i} due to submission error")
             continue
         
         # Poll for completion (max 10 minutes)
