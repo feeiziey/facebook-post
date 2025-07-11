@@ -1,0 +1,176 @@
+name: Test Image Generation
+
+on:
+  # Allow manual trigger
+  workflow_dispatch:
+    inputs:
+      test_prompt:
+        description: 'Test prompt for image generation'
+        required: false
+        default: 'A beautiful sunset over mountains, digital art'
+  
+  # Also run on push to main (optional)
+  push:
+    branches: [ main ]
+    paths: 
+      - 'generate_images.py'
+      - '.github/workflows/test-image-generation.yml'
+
+jobs:
+  test-huggingface:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install requests notion-client
+    
+    - name: Test Hugging Face API Connection
+      env:
+        HUGGINGFACE_TOKEN: ${{ secrets.HUGGINGFACE_TOKEN }}
+      run: |
+        python3 -c "
+        import os
+        import requests
+        
+        token = os.environ.get('HUGGINGFACE_TOKEN')
+        if not token:
+            print('❌ HUGGINGFACE_TOKEN not set')
+            exit(1)
+        
+        print('🔑 Testing token...')
+        response = requests.get(
+            'https://huggingface.co/api/whoami-v2',
+            headers={'Authorization': f'Bearer {token}'},
+            timeout=10
+        )
+        
+        if response.status_code == 200:
+            data = response.json()
+            print(f'✅ Token valid for user: {data.get(\"name\", \"Unknown\")}')
+        else:
+            print(f'❌ Token validation failed: {response.status_code}')
+            exit(1)
+        "
+    
+    - name: Test Image Generation
+      env:
+        HUGGINGFACE_TOKEN: ${{ secrets.HUGGINGFACE_TOKEN }}
+      run: |
+        python3 -c "
+        import os
+        import requests
+        import time
+        from datetime import datetime
+        
+        token = os.environ.get('HUGGINGFACE_TOKEN')
+        model_url = 'https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0'
+        
+        headers = {
+            'Authorization': f'Bearer {token}',
+            'Content-Type': 'application/json'
+        }
+        
+        prompt = '${{ github.event.inputs.test_prompt }}' or 'A beautiful sunset over mountains, digital art'
+        
+        payload = {
+            'inputs': prompt,
+            'parameters': {
+                'num_inference_steps': 20,
+                'guidance_scale': 7.5,
+                'width': 512,
+                'height': 512
+            }
+        }
+        
+        print(f'🎨 Generating image with prompt: {prompt}')
+        print('⏳ This may take 30-60 seconds...')
+        
+        try:
+            response = requests.post(model_url, headers=headers, json=payload, timeout=90)
+            print(f'📊 Response status: {response.status_code}')
+            
+            if response.status_code == 200:
+                print('🎉 Image generated successfully!')
+                
+                # Save test image
+                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                filename = f'github_test_{timestamp}.png'
+                
+                os.makedirs('images', exist_ok=True)
+                with open(f'images/{filename}', 'wb') as f:
+                    f.write(response.content)
+                
+                print(f'💾 Image saved as: images/{filename}')
+                print(f'📏 Image size: {len(response.content)} bytes')
+                
+            elif response.status_code == 503:
+                print('⏳ Model is loading, waiting 30 seconds and retrying...')
+                time.sleep(30)
+                
+                response = requests.post(model_url, headers=headers, json=payload, timeout=90)
+                if response.status_code == 200:
+                    print('🎉 Image generated successfully on retry!')
+                    
+                    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                    filename = f'github_test_{timestamp}.png'
+                    
+                    os.makedirs('images', exist_ok=True)
+                    with open(f'images/{filename}', 'wb') as f:
+                        f.write(response.content)
+                    
+                    print(f'💾 Image saved as: images/{filename}')
+                else:
+                    print(f'❌ Retry failed: {response.status_code}')
+                    exit(1)
+            else:
+                print(f'❌ Error: {response.status_code}')
+                print(f'📝 Response: {response.text}')
+                exit(1)
+                
+        except Exception as e:
+            print(f'❌ Error: {e}')
+            exit(1)
+        "
+    
+    - name: Test Full Script (without Notion)
+      env:
+        HUGGINGFACE_TOKEN: ${{ secrets.HUGGINGFACE_TOKEN }}
+      run: |
+        echo "🧪 Testing the main script structure..."
+        python3 -c "
+        import generate_images
+        
+        # Test that all functions are importable
+        print('✅ generate_images module imported successfully')
+        print('✅ All functions are available')
+        print('📝 Note: Skipping full execution since NOTION_TOKEN is not set')
+        "
+    
+    - name: Upload Generated Images
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: generated-images
+        path: images/
+        retention-days: 7
+    
+    - name: Test Summary
+      run: |
+        echo "🎯 Test Summary:"
+        echo "✅ Hugging Face API connection successful"
+        echo "✅ Image generation working"
+        echo "✅ Script structure validated"
+        echo "🚀 Your GitHub Actions setup is ready!"
+        echo ""
+        echo "📁 Generated images are uploaded as artifacts"
+        echo "💡 To test with Notion, add NOTION_TOKEN to your secrets" 

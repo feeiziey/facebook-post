@@ -1,0 +1,76 @@
+name: Generate Images for Facebook Posts
+
+on:
+  # Manual trigger
+  workflow_dispatch:
+  
+  # Scheduled run (every 6 hours)
+  schedule:
+    - cron: '0 */6 * * *'  # Every 6 hours
+  
+  # Also run when generate_images.py is updated
+  push:
+    branches: [ main ]
+    paths: 
+      - 'generate_images.py'
+
+jobs:
+  generate-images:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install requests notion-client
+    
+    - name: Generate Images
+      env:
+        HUGGINGFACE_TOKEN: ${{ secrets.HUGGINGFACE_TOKEN }}
+        NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+        NOTION_BANK_DB_ID: ${{ secrets.NOTION_BANK_DB_ID }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_REPOSITORY: ${{ github.repository }}
+      run: |
+        echo "🚀 Starting image generation process..."
+        python3 generate_images.py
+    
+    - name: Commit and push generated images
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        
+        # Add any new images
+        git add images/
+        
+        # Check if there are changes to commit
+        if git diff --staged --quiet; then
+          echo "📝 No new images to commit"
+        else
+          echo "💾 Committing new images..."
+          git commit -m "Add generated images from automated workflow"
+          git push
+        fi
+    
+    - name: Upload Generated Images as Artifacts
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: facebook-post-images
+        path: images/
+        retention-days: 30
+    
+    - name: Summary
+      run: |
+        echo "🎯 Image Generation Summary:"
+        echo "✅ Script executed successfully"
+        echo "📁 Images saved to repository"
+        echo "🔄 Process will run again in 6 hours" 
