@@ -1,24 +1,18 @@
 #!/usr/bin/env python3
 """
 Hugging Face Image Generation Script for Facebook Posts
-Processes pending picture posts from Notion and generates images using Hugging Face Inference API
+Processes waiting picture posts from Notion and generates images using Hugging Face Inference API
 """
 
 import os
 import requests
-import json
 import time
-import base64
 from datetime import datetime
-from io import BytesIO
 
 # Configuration
 NOTION_TOKEN = os.environ.get('NOTION_TOKEN')
 NOTION_BANK_DB_ID = '229bc30eae8c803bac1be32cc42ee186'  # Correct database ID
 HUGGINGFACE_TOKEN = os.environ.get('HUGGINGFACE_TOKEN')
-GITHUB_TOKEN = os.environ.get('GITHUB_TOKEN')
-
-# GitHub repository info (auto-detect from environment)
 GITHUB_REPO = os.environ.get('GITHUB_REPOSITORY', 'feeiziey/facebook-post')
 
 # Hugging Face model endpoint
@@ -37,9 +31,9 @@ hf_headers = {
     'Content-Type': 'application/json'
 }
 
-def get_pending_picture_posts():
-    """Get all pending picture posts from Notion"""
-    print("🔍 Searching for pending picture posts...")
+def get_waiting_picture_posts():
+    """Get all waiting picture posts from Notion"""
+    print("🔍 Searching for waiting picture posts...")
     
     query_data = {
         'filter': {
@@ -47,7 +41,7 @@ def get_pending_picture_posts():
                 {
                     'property': 'Status',
                     'rich_text': {
-                        'contains': 'Pending'
+                        'contains': 'Waiting'
                     }
                 },
                 {
@@ -72,22 +66,17 @@ def get_pending_picture_posts():
         for record in data['results']:
             # Extract properties
             prompt_prop = record['properties'].get('Prompt', {})
-            caption_prop = record['properties'].get('Caption', {})
-            link_prop = record['properties'].get('Link', {})
             
             prompt = prompt_prop['title'][0]['text']['content'] if prompt_prop.get('title') else ''
-            caption = caption_prop['rich_text'][0]['text']['content'] if caption_prop.get('rich_text') else ''
-            link = link_prop['rich_text'][0]['text']['content'] if link_prop.get('rich_text') else ''
             
-            # Only process if we have a prompt and no existing link (or empty link)
-            if prompt and (not link or link.strip() == ''):
+            # Only process if we have a prompt
+            if prompt:
                 posts.append({
                     'id': record['id'],
-                    'prompt': prompt,
-                    'caption': caption
+                    'prompt': prompt
                 })
         
-        print(f"📋 Found {len(posts)} pending picture posts without links")
+        print(f"📋 Found {len(posts)} waiting picture posts")
         return posts
     else:
         print(f"❌ Error querying Notion: {response.status_code} - {response.text}")
@@ -95,7 +84,7 @@ def get_pending_picture_posts():
 
 def generate_image_with_huggingface(prompt):
     """Generate image using Hugging Face Inference API"""
-    print(f"🎨 Generating image with Hugging Face: {prompt[:50]}...")
+    print(f"🎨 Generating image with prompt: {prompt[:50]}...")
     
     payload = {
         "inputs": prompt,
@@ -126,14 +115,8 @@ def generate_image_with_huggingface(prompt):
         else:
             print(f"❌ Error generating image: {response.status_code} - {response.text}")
             return None
-    except requests.exceptions.ConnectionError as e:
-        print(f"❌ Connection error to Hugging Face: {e}")
-        return None
-    except requests.exceptions.Timeout as e:
-        print(f"❌ Timeout connecting to Hugging Face: {e}")
-        return None
     except Exception as e:
-        print(f"❌ Unexpected error: {e}")
+        print(f"❌ Error: {e}")
         return None
 
 def save_image_locally(image_data, filename):
@@ -153,9 +136,9 @@ def save_image_locally(image_data, filename):
     print(f"✅ Image saved locally and will be available at: {github_url}")
     return github_url
 
-def update_notion_record(record_id, image_url):
-    """Update Notion record with the generated image link"""
-    print(f"📝 Updating Notion record with image link...")
+def update_notion_record_with_image_and_status(record_id, image_url):
+    """Update Notion record with the generated image link and change status to Pending"""
+    print(f"📝 Updating Notion record with image link and changing status to Pending...")
     
     update_data = {
         'properties': {
@@ -164,6 +147,15 @@ def update_notion_record(record_id, image_url):
                     {
                         'text': {
                             'content': image_url
+                        }
+                    }
+                ]
+            },
+            'Status': {
+                'rich_text': [
+                    {
+                        'text': {
+                            'content': 'Pending'
                         }
                     }
                 ]
@@ -178,31 +170,15 @@ def update_notion_record(record_id, image_url):
     )
     
     if response.status_code == 200:
-        print("✅ Notion record updated successfully")
+        print("✅ Notion record updated successfully - Status changed to Pending")
         return True
     else:
         print(f"❌ Error updating Notion: {response.status_code} - {response.text}")
         return False
 
-def test_connectivity():
-    """Test connectivity to Hugging Face API"""
-    try:
-        # Test with a simple request
-        test_payload = {"inputs": "test"}
-        response = requests.post(HF_MODEL_URL, headers=hf_headers, json=test_payload, timeout=10)
-        if response.status_code in [200, 503]:  # 503 means model is loading, which is fine
-            print("✅ Hugging Face API is accessible")
-            return True
-        else:
-            print(f"⚠️ Hugging Face API returned status {response.status_code}")
-            return False
-    except Exception as e:
-        print(f"❌ Cannot reach Hugging Face API: {e}")
-        return False
-
 def main():
     """Main execution function"""
-    print("🚀 Starting Hugging Face Image Generation Process")
+    print("🚀 Starting Facebook Post Image Generation")
     print(f"📅 {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     
     if not NOTION_TOKEN:
@@ -213,22 +189,16 @@ def main():
         print("❌ HUGGINGFACE_TOKEN environment variable not set")
         return
     
-    # Test connectivity first
-    if not test_connectivity():
-        print("🔄 Hugging Face API is not accessible. This might be temporary.")
-        print("📋 Will still check for pending posts and exit gracefully.")
-    
-    # Get pending picture posts
-    posts = get_pending_picture_posts()
+    # Get waiting picture posts
+    posts = get_waiting_picture_posts()
     
     if not posts:
-        print("✅ No pending picture posts found")
+        print("✅ No waiting picture posts found")
         return
     
     # Process each post
     for i, post in enumerate(posts, 1):
         print(f"\n📸 Processing post {i}/{len(posts)}")
-        print(f"Caption: {post['caption']}")
         print(f"Prompt: {post['prompt']}")
         
         # Generate image with Hugging Face
@@ -246,8 +216,8 @@ def main():
         if not github_url:
             continue
         
-        # Update Notion record
-        update_notion_record(post['id'], github_url)
+        # Update Notion record with image link and change status to Pending
+        update_notion_record_with_image_and_status(post['id'], github_url)
         
         print(f"✅ Successfully processed post {i}")
         

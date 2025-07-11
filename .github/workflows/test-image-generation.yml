@@ -8,13 +8,6 @@ on:
         description: 'Test prompt for image generation'
         required: false
         default: 'A beautiful sunset over mountains, digital art'
-  
-  # Also run on push to main (optional)
-  push:
-    branches: [ main ]
-    paths: 
-      - 'generate_images.py'
-      - '.github/workflows/test-image-generation.yml'
 
 jobs:
   test-huggingface:
@@ -142,20 +135,6 @@ jobs:
             exit(1)
         "
     
-    - name: Test Full Script (without Notion)
-      env:
-        HUGGINGFACE_TOKEN: ${{ secrets.HUGGINGFACE_TOKEN }}
-      run: |
-        echo "🧪 Testing the main script structure..."
-        python3 -c "
-        import generate_images
-        
-        # Test that all functions are importable
-        print('✅ generate_images module imported successfully')
-        print('✅ All functions are available')
-        print('📝 Note: Skipping full execution since NOTION_TOKEN is not set')
-        "
-    
     - name: Upload Generated Images
       uses: actions/upload-artifact@v4
       if: always()
@@ -169,8 +148,10 @@ jobs:
         echo "🎯 Test Summary:"
         echo "✅ Hugging Face API connection successful"
         echo "✅ Image generation working"
-        echo "✅ Script structure validated"
-        echo "🚀 Your GitHub Actions setup is ready!"
+        echo "🚀 Your system is ready to process waiting posts!"
         echo ""
-        echo "📁 Generated images are uploaded as artifacts"
-        echo "💡 To test with Notion, add NOTION_TOKEN to your secrets" 
+        echo "📋 How it works:"
+        echo "1. Looks for posts with Status='Waiting' and Content='Picture'"
+        echo "2. Generates images using the Prompt column"
+        echo "3. Saves image link to Link column"
+        echo "4. Changes Status from 'Waiting' to 'Pending'" 
