@@ -109,7 +109,7 @@ def submit_to_stable_horde(prompt):
     
     try:
         response = requests.post(
-            'https://stablehorde.ai/api/v2/generate/async',
+            'https://stablehorde.net/api/v2/generate/async',
             headers=horde_headers,
             json=payload,
             timeout=30
@@ -138,7 +138,7 @@ def check_generation_status(request_id):
     """Check the status of image generation"""
     try:
         response = requests.get(
-            f'https://stablehorde.ai/api/v2/generate/check/{request_id}',
+            f'https://stablehorde.net/api/v2/generate/check/{request_id}',
             headers=horde_headers,
             timeout=30
         )
@@ -160,7 +160,7 @@ def get_generated_image(request_id):
     """Get the generated image from Stable Horde"""
     try:
         response = requests.get(
-            f'https://stablehorde.ai/api/v2/generate/status/{request_id}',
+            f'https://stablehorde.net/api/v2/generate/status/{request_id}',
             headers=horde_headers,
             timeout=30
         )
@@ -238,7 +238,7 @@ def update_notion_record(record_id, image_url):
 def test_connectivity():
     """Test connectivity to Stable Horde API"""
     try:
-        response = requests.get('https://stablehorde.ai/api/v2/status/heartbeat', timeout=10)
+        response = requests.get('https://stablehorde.net/api/v2/status/heartbeat', timeout=10)
         if response.status_code == 200:
             print("✅ Stable Horde API is accessible")
             return True

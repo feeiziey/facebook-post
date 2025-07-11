@@ -25,7 +25,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install requests
           # Test DNS resolution
-          nslookup stablehorde.ai || echo "DNS resolution failed, but continuing..."
+          nslookup stablehorde.net || echo "DNS resolution failed, but continuing..."
 
       - name: Generate images for pending picture posts
         continue-on-error: true
