@@ -73,7 +73,7 @@ def get_pending_picture_posts():
             
             prompt = prompt_prop['title'][0]['text']['content'] if prompt_prop.get('title') else ''
             caption = caption_prop['rich_text'][0]['text']['content'] if caption_prop.get('rich_text') else ''
-            link = link_prop.get('select', {}).get('name', '') if link_prop.get('select') else ''
+            link = link_prop['rich_text'][0]['text']['content'] if link_prop.get('rich_text') else ''
             
             # Only process if we have a prompt and no existing link
             if prompt and not link:
@@ -215,9 +215,13 @@ def update_notion_record(record_id, image_url):
     update_data = {
         'properties': {
             'Link': {
-                'select': {
-                    'name': image_url
-                }
+                'rich_text': [
+                    {
+                        'text': {
+                            'content': image_url
+                        }
+                    }
+                ]
             }
         }
     }
