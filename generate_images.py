@@ -15,8 +15,8 @@ NOTION_BANK_DB_ID = '229bc30eae8c803bac1be32cc42ee186'  # Correct database ID
 HUGGINGFACE_TOKEN = os.environ.get('HUGGINGFACE_TOKEN')
 GITHUB_REPO = os.environ.get('GITHUB_REPOSITORY', 'feeiziey/facebook-post')
 
-# Hugging Face model endpoint
-HF_MODEL_URL = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0"
+# Use FLUX.1-schnell - Much better quality and faster than Stable Diffusion XL
+HF_MODEL_URL = "https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-schnell"
 
 # Headers for Notion API
 notion_headers = {
@@ -83,16 +83,18 @@ def get_waiting_picture_posts():
         return []
 
 def generate_image_with_huggingface(prompt):
-    """Generate image using Hugging Face Inference API"""
-    print(f"🎨 Generating image with prompt: {prompt[:50]}...")
+    """Generate image using FLUX.1-schnell - Much better quality than Stable Diffusion XL"""
+    print(f"🎨 Generating high-quality image with FLUX.1-schnell: {prompt[:50]}...")
     
+    # FLUX.1-schnell optimized parameters for best quality
     payload = {
         "inputs": prompt,
         "parameters": {
-            "num_inference_steps": 30,
-            "guidance_scale": 7.5,
+            "num_inference_steps": 4,  # FLUX.1-schnell is optimized for 1-4 steps
+            "guidance_scale": 0.0,     # FLUX.1-schnell doesn't need guidance
             "width": 1024,
-            "height": 1024
+            "height": 1024,
+            "max_sequence_length": 256  # Optimized for FLUX
         }
     }
     
@@ -105,11 +107,11 @@ def generate_image_with_huggingface(prompt):
         )
         
         if response.status_code == 200:
-            print("✅ Image generated successfully!")
+            print("✅ High-quality image generated successfully with FLUX.1-schnell!")
             return response.content
         elif response.status_code == 503:
             # Model is loading, wait and retry
-            print("⏳ Model is loading, waiting 20 seconds...")
+            print("⏳ FLUX.1-schnell model is loading, waiting 20 seconds...")
             time.sleep(20)
             return generate_image_with_huggingface(prompt)
         else:
@@ -178,7 +180,7 @@ def update_notion_record_with_image_and_status(record_id, image_url):
 
 def main():
     """Main execution function"""
-    print("🚀 Starting Facebook Post Image Generation")
+    print("🚀 Starting Facebook Post Image Generation with FLUX.1-schnell")
     print(f"📅 {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     
     if not NOTION_TOKEN:
@@ -201,7 +203,7 @@ def main():
         print(f"\n📸 Processing post {i}/{len(posts)}")
         print(f"Prompt: {post['prompt']}")
         
-        # Generate image with Hugging Face
+        # Generate image with FLUX.1-schnell (much better quality)
         image_data = generate_image_with_huggingface(post['prompt'])
         if not image_data:
             print(f"⏭️ Skipping post {i} due to generation error")
@@ -209,7 +211,7 @@ def main():
         
         # Generate filename
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        filename = f'generated_{timestamp}_{i}.png'
+        filename = f'flux_generated_{timestamp}_{i}.png'
         
         # Save image locally and get GitHub URL
         github_url = save_image_locally(image_data, filename)
@@ -226,7 +228,7 @@ def main():
             print("⏳ Waiting 5 seconds before next request...")
             time.sleep(5)
     
-    print(f"\n🎯 Completed processing {len(posts)} posts")
+    print(f"\n🎯 Completed processing {len(posts)} posts with FLUX.1-schnell")
 
 if __name__ == '__main__':
     main() 

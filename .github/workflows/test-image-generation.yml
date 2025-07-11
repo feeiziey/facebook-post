@@ -55,7 +55,7 @@ jobs:
             exit(1)
         "
     
-    - name: Test Image Generation
+    - name: Test FLUX.1-schnell Image Generation
       env:
         HUGGINGFACE_TOKEN: ${{ secrets.HUGGINGFACE_TOKEN }}
       run: |
@@ -66,7 +66,7 @@ jobs:
         from datetime import datetime
         
         token = os.environ.get('HUGGINGFACE_TOKEN')
-        model_url = 'https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0'
+        model_url = 'https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-schnell'
         
         headers = {
             'Authorization': f'Bearer {token}',
@@ -75,29 +75,31 @@ jobs:
         
         prompt = '${{ github.event.inputs.test_prompt }}' or 'A beautiful sunset over mountains, digital art'
         
+        # FLUX.1-schnell optimized parameters
         payload = {
             'inputs': prompt,
             'parameters': {
-                'num_inference_steps': 20,
-                'guidance_scale': 7.5,
-                'width': 512,
-                'height': 512
+                'num_inference_steps': 4,
+                'guidance_scale': 0.0,
+                'width': 1024,
+                'height': 1024,
+                'max_sequence_length': 256
             }
         }
         
-        print(f'🎨 Generating image with prompt: {prompt}')
-        print('⏳ This may take 30-60 seconds...')
+        print(f'🎨 Generating high-quality image with FLUX.1-schnell: {prompt}')
+        print('⏳ This should be much faster and better quality than before!')
         
         try:
             response = requests.post(model_url, headers=headers, json=payload, timeout=90)
             print(f'📊 Response status: {response.status_code}')
             
             if response.status_code == 200:
-                print('🎉 Image generated successfully!')
+                print('🎉 High-quality image generated successfully with FLUX.1-schnell!')
                 
                 # Save test image
                 timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-                filename = f'github_test_{timestamp}.png'
+                filename = f'flux_test_{timestamp}.png'
                 
                 os.makedirs('images', exist_ok=True)
                 with open(f'images/{filename}', 'wb') as f:
@@ -107,15 +109,15 @@ jobs:
                 print(f'📏 Image size: {len(response.content)} bytes')
                 
             elif response.status_code == 503:
-                print('⏳ Model is loading, waiting 30 seconds and retrying...')
+                print('⏳ FLUX.1-schnell model is loading, waiting 30 seconds and retrying...')
                 time.sleep(30)
                 
                 response = requests.post(model_url, headers=headers, json=payload, timeout=90)
                 if response.status_code == 200:
-                    print('🎉 Image generated successfully on retry!')
+                    print('🎉 High-quality image generated successfully on retry!')
                     
                     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-                    filename = f'github_test_{timestamp}.png'
+                    filename = f'flux_test_{timestamp}.png'
                     
                     os.makedirs('images', exist_ok=True)
                     with open(f'images/{filename}', 'wb') as f:
@@ -147,11 +149,17 @@ jobs:
       run: |
         echo "🎯 Test Summary:"
         echo "✅ Hugging Face API connection successful"
-        echo "✅ Image generation working"
-        echo "🚀 Your system is ready to process waiting posts!"
+        echo "✅ FLUX.1-schnell image generation working"
+        echo "🚀 Your system is ready to process waiting posts with high-quality images!"
+        echo ""
+        echo "🎨 FLUX.1-schnell Benefits:"
+        echo "• Much better image quality than Stable Diffusion XL"
+        echo "• Faster generation (4 steps vs 30 steps)"
+        echo "• Better prompt following"
+        echo "• Completely free with Apache 2.0 license"
         echo ""
         echo "📋 How it works:"
         echo "1. Looks for posts with Status='Waiting' and Content='Picture'"
-        echo "2. Generates images using the Prompt column"
+        echo "2. Generates high-quality images using FLUX.1-schnell"
         echo "3. Saves image link to Link column"
         echo "4. Changes Status from 'Waiting' to 'Pending'" 
