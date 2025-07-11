@@ -75,8 +75,8 @@ def get_pending_picture_posts():
             caption = caption_prop['rich_text'][0]['text']['content'] if caption_prop.get('rich_text') else ''
             link = link_prop['rich_text'][0]['text']['content'] if link_prop.get('rich_text') else ''
             
-            # Only process if we have a prompt and no existing link
-            if prompt and not link:
+            # Only process if we have a prompt and no existing link (or empty link)
+            if prompt and (not link or link.strip() == ''):
                 posts.append({
                     'id': record['id'],
                     'prompt': prompt,
