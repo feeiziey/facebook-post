@@ -53,4 +53,7 @@ jspm_packages/
 *.tgz
 
 # Yarn Integrity file
-.yarn-integrity 
+.yarn-integrity
+
+# Generated images (will be committed by GitHub Actions)
+# images/ 

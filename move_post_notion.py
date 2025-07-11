@@ -3,7 +3,7 @@ from notion_client import Client
 
 # Initialize Notion client
 notion = Client(auth=os.environ["NOTION_TOKEN"])
-bank_db = os.environ["NOTION_BANK_DB_ID"]
+bank_db = os.environ.get("NOTION_BANK_DB_ID", "229bc30eae8c803bac1be32cc42ee186")  # Default to correct database
 queue_db = os.environ["NOTION_QUEUE_DB_ID"]
 
 try:
@@ -14,8 +14,8 @@ try:
         page_size=1,
         filter={
             "property": "Status",
-            "status": {
-                "does_not_equal": "Posted"
+            "rich_text": {
+                "does_not_contain": "Posted"
             }
         },
         sorts=[
@@ -85,9 +85,13 @@ try:
         page_id=post["id"],
         properties={
             "Status": {
-                "status": {
-                    "name": "Posted"
-                }
+                "rich_text": [
+                    {
+                        "text": {
+                            "content": "Posted"
+                        }
+                    }
+                ]
             }
         }
     )
