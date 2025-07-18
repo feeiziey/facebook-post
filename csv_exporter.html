@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CSV Export for Notion</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+        
+        .form-container {
+            padding: 40px;
+        }
+        
+        .form-group {
+            margin-bottom: 25px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+            font-size: 1.1rem;
+        }
+        
+        input[type="text"], textarea {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e1e5e9;
+            border-radius: 10px;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+        }
+        
+        input[type="text"]:focus, textarea:focus {
+            outline: none;
+            border-color: #4facfe;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+            width: 100%;
+            margin-top: 20px;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+        
+        .btn.download {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        }
+        
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 10px;
+            display: none;
+        }
+        
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .status.loading {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        
+        .preview {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            display: none;
+        }
+        
+        .csv-preview {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 0.9rem;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            border: 1px solid #dee2e6;
+        }
+        
+        .instructions {
+            background: #e7f3ff;
+            border: 1px solid #b3d9ff;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+        }
+        
+        .instructions h3 {
+            color: #0066cc;
+            margin-bottom: 15px;
+        }
+        
+        .instructions ol {
+            margin-left: 20px;
+        }
+        
+        .instructions li {
+            margin-bottom: 8px;
+            color: #0066cc;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 CSV Export for Notion</h1>
+            <p>Generate CSV files for direct Notion database import</p>
+        </div>
+        
+        <div class="form-container">
+            <div class="instructions">
+                <h3>🎯 How to Import to Notion:</h3>
+                <ol>
+                    <li>Generate content and download CSV file</li>
+                    <li>Go to your Notion database</li>
+                    <li>Click "..." menu → "Import" → "CSV"</li>
+                    <li>Upload the CSV file</li>
+                    <li>Map columns: Name, Status, Content, Prompt</li>
+                    <li>Click "Import" - Done! 🎉</li>
+                </ol>
+            </div>
+            
+            <div class="form-group">
+                <label for="topics">Topics (comma-separated)</label>
+                <input type="text" id="topics" placeholder="marriage, lifestyle, food, football" value="marriage, lifestyle, food, football">
+            </div>
+            
+            <div class="form-group">
+                <label for="audience">Target Audience/Context</label>
+                <input type="text" id="audience" placeholder="northern nigeria, nigerians, hausa" value="northern nigeria, nigerians, hausa">
+            </div>
+            
+            <div class="form-group">
+                <label for="filters">Negative Filters (comma-separated)</label>
+                <input type="text" id="filters" placeholder="sex, vulgar, explicit" value="sex, vulgar, explicit">
+            </div>
+            
+            <button class="btn" onclick="generateCSV()">
+                🤖 Generate CSV Content
+            </button>
+            
+            <div class="form-group" style="margin-top: 40px;">
+                <label for="chatgptContent">📋 Or Paste ChatGPT Content Here</label>
+                <textarea id="chatgptContent" placeholder="Paste your ChatGPT-generated content here in any format:
+• Table format: Title | Caption | Prompt | Type
+• Numbered lists with captions/prompts
+• Simple text lists (one per line)
+
+Then click 'Generate CSV' to convert to importable format!" style="min-height: 150px;"></textarea>
+            </div>
+            
+            <button class="btn" onclick="convertToCSV()">
+                📊 Convert to CSV
+            </button>
+            
+            <div id="status" class="status"></div>
+            <div id="preview" class="preview"></div>
+        </div>
+    </div>
+
+    <script>
+        // Same content generation logic as before
+        const contentIdeas = {
+            marriage: {
+                thisOrThat: [
+                    ['A man who cooks', 'A man who provides everything'],
+                    ['Love marriage', 'Arranged marriage'],
+                    ['Big wedding', 'Court wedding + honeymoon'],
+                    ['Stay-at-home wife', 'Working wife'],
+                    ['Husband who travels', 'Husband who stays home'],
+                    ['Traditional wedding', 'White wedding'],
+                    ['Polygamy', 'Monogamy'],
+                    ['Early marriage', 'Late marriage']
+                ],
+                textPosts: [
+                    'marriage in Nigeria',
+                    'wedding traditions',
+                    'spouse qualities',
+                    'marriage advice',
+                    'relationship goals',
+                    'wedding planning',
+                    'marriage counseling',
+                    'family values'
+                ]
+            },
+            lifestyle: {
+                thisOrThat: [
+                    ['Lagos life', 'Abuja life'],
+                    ['Village life', 'City life'],
+                    ['Generator', 'Solar power'],
+                    ['Okada', 'Keke napep'],
+                    ['Suya', 'Kilishi'],
+                    ['Nollywood', 'Hollywood'],
+                    ['Jollof rice', 'Fried rice'],
+                    ['Weekend in Lagos', 'Weekend in Dubai']
+                ],
+                textPosts: [
+                    'Nigerian lifestyle',
+                    'city living',
+                    'weekend activities',
+                    'Nigerian culture',
+                    'modern vs traditional',
+                    'urban vs rural',
+                    'entertainment choices',
+                    'lifestyle changes'
+                ]
+            },
+            food: {
+                thisOrThat: [
+                    ['Jollof rice', 'Fried rice'],
+                    ['Amala', 'Pounded yam'],
+                    ['Suya', 'Pepper soup'],
+                    ['Indomie', 'Spaghetti'],
+                    ['Boli', 'Roasted corn'],
+                    ['Garri', 'Rice'],
+                    ['Meat pie', 'Sausage roll'],
+                    ['Zobo', 'Chapman']
+                ],
+                textPosts: [
+                    'Nigerian cuisine',
+                    'favorite dishes',
+                    'cooking methods',
+                    'food combinations',
+                    'street food',
+                    'home cooking',
+                    'restaurant vs home food',
+                    'food memories'
+                ]
+            },
+            football: {
+                thisOrThat: [
+                    ['Manchester United', 'Manchester City'],
+                    ['Real Madrid', 'Barcelona'],
+                    ['Premier League', 'La Liga'],
+                    ['Messi', 'Ronaldo'],
+                    ['Arsenal', 'Chelsea'],
+                    ['Liverpool', 'Tottenham'],
+                    ['Champions League', 'World Cup'],
+                    ['Playing football', 'Watching football']
+                ],
+                textPosts: [
+                    'football in Nigeria',
+                    'favorite teams',
+                    'football legends',
+                    'local vs international football',
+                    'football memories',
+                    'Super Eagles',
+                    'football predictions',
+                    'football culture'
+                ]
+            }
+        };
+
+        const thisOrThatTemplates = [
+            "You can only choose one: {option1} or {option2}?",
+            "Pick one and explain why: {option1} vs {option2}",
+            "One has to go forever: {option1} or {option2}?",
+            "If you had to choose: {option1} or {option2}?",
+            "Which would you rather: {option1} or {option2}?",
+            "Choose your side: {option1} or {option2}?",
+            "One must stay, one must go: {option1} vs {option2}",
+            "Team {option1} or Team {option2}? Choose wisely!"
+        ];
+
+        const textPostTemplates = [
+            "What's your take on {topic}? Share your thoughts!",
+            "Which {topic} do you prefer and why?",
+            "What's the best {topic} you've ever experienced?",
+            "If you could change one thing about {topic}, what would it be?",
+            "What's your unpopular opinion about {topic}?",
+            "Share your favorite {topic} memory in the comments!",
+            "What's the most important thing about {topic} to you?",
+            "Which {topic} trend do you think will last?"
+        ];
+
+        function getRandomElement(array) {
+            return array[Math.floor(Math.random() * array.length)];
+        }
+
+        function escapeCSV(text) {
+            // Escape quotes and wrap in quotes if necessary
+            if (text.includes('"') || text.includes(',') || text.includes('\n')) {
+                return '"' + text.replace(/"/g, '""') + '"';
+            }
+            return text;
+        }
+
+        function generateContent() {
+            const topics = document.getElementById('topics').value.split(',').map(t => t.trim().toLowerCase());
+            const audience = document.getElementById('audience').value.toLowerCase();
+            const filters = document.getElementById('filters').value.split(',').map(f => f.trim().toLowerCase());
+            
+            const posts = [];
+            
+            // Generate 6 picture posts
+            for (let i = 0; i < 6; i++) {
+                const topic = getRandomElement(topics);
+                let options;
+                
+                if (contentIdeas[topic]) {
+                    options = getRandomElement(contentIdeas[topic].thisOrThat);
+                } else {
+                    options = [`Traditional ${topic}`, `Modern ${topic}`];
+                }
+                
+                const template = getRandomElement(thisOrThatTemplates);
+                const caption = template.replace('{option1}', options[0]).replace('{option2}', options[1]);
+                const prompt = `Split screen image showing ${options[0]} on the left side and ${options[1]} on the right side, with 'VS' in the middle, colorful and engaging design, Nigerian context, high quality digital art`;
+                
+                const hasNegativeContent = filters.some(filter => 
+                    caption.toLowerCase().includes(filter) || prompt.toLowerCase().includes(filter)
+                );
+                
+                if (!hasNegativeContent) {
+                    posts.push({
+                        name: caption,
+                        status: 'Waiting',
+                        content: 'Picture',
+                        prompt: prompt
+                    });
+                }
+            }
+            
+            // Generate 6 text posts
+            for (let i = 0; i < 6; i++) {
+                const topic = getRandomElement(topics);
+                let textTopic;
+                
+                if (contentIdeas[topic]) {
+                    textTopic = getRandomElement(contentIdeas[topic].textPosts);
+                } else {
+                    textTopic = topic;
+                }
+                
+                const template = getRandomElement(textPostTemplates);
+                let content = template.replace('{topic}', textTopic);
+                
+                if (audience.includes('nigeria')) {
+                    if (audience.includes('northern')) {
+                        content += " (Northern Nigeria perspective welcome!)";
+                    } else if (audience.includes('hausa')) {
+                        content += " (Hausa community thoughts needed!)";
+                    } else {
+                        content += " (All Nigerians welcome to share!)";
+                    }
+                }
+                
+                const hasNegativeContent = filters.some(filter => 
+                    content.toLowerCase().includes(filter)
+                );
+                
+                if (!hasNegativeContent) {
+                    posts.push({
+                        name: content,
+                        status: 'Pending',
+                        content: 'Text',
+                        prompt: ''
+                    });
+                }
+            }
+            
+            return posts;
+        }
+
+        function parseChatGPTContent(content) {
+            const posts = [];
+            const lines = content.trim().split('\n');
+            
+            if (content.includes('|')) {
+                // Table format
+                for (const line of lines) {
+                    if (line.includes('|') && !line.trim().startsWith('|---')) {
+                        const parts = line.split('|').map(p => p.trim());
+                        if (parts.length >= 4) {
+                            if (parts[0].toLowerCase().includes('title') || parts[0].toLowerCase().includes('post')) {
+                                continue;
+                            }
+                            
+                            const isImage = parts[3].toLowerCase().includes('picture') || parts[2].trim();
+                            posts.push({
+                                name: parts[0],
+                                status: isImage ? 'Waiting' : 'Pending',
+                                content: isImage ? 'Picture' : 'Text',
+                                prompt: parts[2] || ''
+                            });
+                        }
+                    }
+                }
+            } else {
+                // Simple text format
+                for (const line of lines) {
+                    const trimmedLine = line.trim();
+                    if (trimmedLine && trimmedLine.length > 10) {
+                        posts.push({
+                            name: trimmedLine,
+                            status: 'Pending',
+                            content: 'Text',
+                            prompt: ''
+                        });
+                    }
+                }
+            }
+            
+            return posts;
+        }
+
+        function postsToCSV(posts) {
+            let csv = 'Name,Status,Content,Prompt\n';
+            
+            posts.forEach(post => {
+                csv += `${escapeCSV(post.name)},${escapeCSV(post.status)},${escapeCSV(post.content)},${escapeCSV(post.prompt)}\n`;
+            });
+            
+            return csv;
+        }
+
+        function downloadCSV(csvContent, filename) {
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            
+            if (link.download !== undefined) {
+                const url = URL.createObjectURL(blob);
+                link.setAttribute('href', url);
+                link.setAttribute('download', filename);
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+        }
+
+        function generateCSV() {
+            showStatus('🤖 Generating Facebook posts...', 'loading');
+            
+            const posts = generateContent();
+            const csvContent = postsToCSV(posts);
+            
+            showPreview(csvContent, posts.length);
+            
+            const timestamp = new Date().toISOString().slice(0, 10);
+            downloadCSV(csvContent, `facebook-posts-${timestamp}.csv`);
+            
+            showStatus(`✅ Generated ${posts.length} posts! CSV file downloaded.`, 'success');
+        }
+
+        function convertToCSV() {
+            const chatgptContent = document.getElementById('chatgptContent').value.trim();
+            
+            if (!chatgptContent) {
+                showStatus('Please paste your ChatGPT content in the textarea above', 'error');
+                return;
+            }
+            
+            showStatus('🔍 Parsing ChatGPT content...', 'loading');
+            
+            const posts = parseChatGPTContent(chatgptContent);
+            
+            if (posts.length === 0) {
+                showStatus('No posts found in the content. Please check the format.', 'error');
+                return;
+            }
+            
+            const csvContent = postsToCSV(posts);
+            
+            showPreview(csvContent, posts.length);
+            
+            const timestamp = new Date().toISOString().slice(0, 10);
+            downloadCSV(csvContent, `chatgpt-posts-${timestamp}.csv`);
+            
+            showStatus(`✅ Converted ${posts.length} posts! CSV file downloaded.`, 'success');
+            document.getElementById('chatgptContent').value = '';
+        }
+
+        function showPreview(csvContent, postCount) {
+            const preview = document.getElementById('preview');
+            const lines = csvContent.split('\n').slice(0, 6); // Show first 5 posts + header
+            
+            preview.innerHTML = `
+                <h3>📊 CSV Preview (${postCount} posts total)</h3>
+                <div class="csv-preview">${lines.join('\n')}</div>
+                <button class="btn download" onclick="downloadCSV(\`${csvContent.replace(/`/g, '\\`')}\`, 'facebook-posts-${new Date().toISOString().slice(0, 10)}.csv')" style="margin-top: 15px;">
+                    📥 Download CSV Again
+                </button>
+            `;
+            preview.style.display = 'block';
+        }
+
+        function showStatus(message, type) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = `status ${type}`;
+            status.style.display = 'block';
+        }
+    </script>
+</body>
+</html> 

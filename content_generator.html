@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Facebook Content Generator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+        
+        .form-container {
+            padding: 40px;
+        }
+        
+        .form-group {
+            margin-bottom: 25px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+            font-size: 1.1rem;
+        }
+        
+        input[type="text"], input[type="password"], textarea {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e1e5e9;
+            border-radius: 10px;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+        }
+        
+        input[type="text"]:focus, input[type="password"]:focus, textarea:focus {
+            outline: none;
+            border-color: #4facfe;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+            width: 100%;
+            margin-top: 20px;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+        
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 10px;
+            display: none;
+        }
+        
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .status.loading {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        
+        .generated-content {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            display: none;
+        }
+        
+        .post-item {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+            border-left: 4px solid #4facfe;
+        }
+        
+        .post-type {
+            font-weight: bold;
+            color: #4facfe;
+            margin-bottom: 5px;
+        }
+        
+        .post-content {
+            margin-bottom: 10px;
+        }
+        
+        .post-prompt {
+            font-size: 0.9rem;
+            color: #666;
+            font-style: italic;
+        }
+        
+        .input-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        @media (max-width: 768px) {
+            .input-group {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .demo-mode {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .demo-mode h3 {
+            color: #856404;
+            margin-bottom: 10px;
+        }
+        
+        .demo-mode p {
+            color: #856404;
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎯 Facebook Content Generator</h1>
+            <p>Generate engaging Nigerian-focused posts automatically</p>
+        </div>
+        
+        <div class="form-container">
+            <div class="input-group">
+                <div class="form-group">
+                    <label for="notionToken">Notion Token</label>
+                    <input type="password" id="notionToken" placeholder="ntn_..." value="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">
+                </div>
+                <div class="form-group">
+                    <label for="databaseId">Bank Database ID</label>
+                    <input type="text" id="databaseId" placeholder="Database ID..." value="229bc30eae8c803bac1be32cc42ee186">
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="topics">Topics (comma-separated)</label>
+                <input type="text" id="topics" placeholder="marriage, lifestyle, food, football" value="marriage, lifestyle, food, football">
+            </div>
+            
+            <div class="form-group">
+                <label for="audience">Target Audience/Context</label>
+                <input type="text" id="audience" placeholder="northern nigeria, nigerians, hausa" value="northern nigeria, nigerians, hausa">
+            </div>
+            
+            <div class="form-group">
+                <label for="filters">Negative Filters (comma-separated)</label>
+                <input type="text" id="filters" placeholder="sex, vulgar, explicit" value="sex, vulgar, explicit">
+            </div>
+            
+            <button class="btn" onclick="generateContent()">
+                🤖 Generate 12 Facebook Posts
+            </button>
+            
+            <div class="form-group" style="margin-top: 40px;">
+                <label for="chatgptContent">📋 Paste ChatGPT Content Here (Optional)</label>
+                <textarea id="chatgptContent" placeholder="Paste your ChatGPT-generated content here in any format:
+• Table format: Title | Caption | Prompt | Type
+• Numbered lists with captions/prompts
+• Simple text lists (one per line)
+
+Then click 'Add to Notion' to import directly!" style="min-height: 150px;"></textarea>
+            </div>
+            
+            <button class="btn" onclick="addToNotion()" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">
+                🚀 Add to Notion
+            </button>
+            
+            <div id="status" class="status"></div>
+            <div id="generatedContent" class="generated-content"></div>
+        </div>
+    </div>
+
+    <script>
+        // Nigerian-specific content ideas
+        const contentIdeas = {
+            marriage: {
+                thisOrThat: [
+                    ['A man who cooks', 'A man who provides everything'],
+                    ['Love marriage', 'Arranged marriage'],
+                    ['Big wedding', 'Court wedding + honeymoon'],
+                    ['Stay-at-home wife', 'Working wife'],
+                    ['Husband who travels', 'Husband who stays home'],
+                    ['Traditional wedding', 'White wedding'],
+                    ['Polygamy', 'Monogamy'],
+                    ['Early marriage', 'Late marriage']
+                ],
+                textPosts: [
+                    'marriage in Nigeria',
+                    'wedding traditions',
+                    'spouse qualities',
+                    'marriage advice',
+                    'relationship goals',
+                    'wedding planning',
+                    'marriage counseling',
+                    'family values'
+                ]
+            },
+            lifestyle: {
+                thisOrThat: [
+                    ['Lagos life', 'Abuja life'],
+                    ['Village life', 'City life'],
+                    ['Generator', 'Solar power'],
+                    ['Okada', 'Keke napep'],
+                    ['Suya', 'Kilishi'],
+                    ['Nollywood', 'Hollywood'],
+                    ['Jollof rice', 'Fried rice'],
+                    ['Weekend in Lagos', 'Weekend in Dubai']
+                ],
+                textPosts: [
+                    'Nigerian lifestyle',
+                    'city living',
+                    'weekend activities',
+                    'Nigerian culture',
+                    'modern vs traditional',
+                    'urban vs rural',
+                    'entertainment choices',
+                    'lifestyle changes'
+                ]
+            },
+            food: {
+                thisOrThat: [
+                    ['Jollof rice', 'Fried rice'],
+                    ['Amala', 'Pounded yam'],
+                    ['Suya', 'Pepper soup'],
+                    ['Indomie', 'Spaghetti'],
+                    ['Boli', 'Roasted corn'],
+                    ['Garri', 'Rice'],
+                    ['Meat pie', 'Sausage roll'],
+                    ['Zobo', 'Chapman']
+                ],
+                textPosts: [
+                    'Nigerian cuisine',
+                    'favorite dishes',
+                    'cooking methods',
+                    'food combinations',
+                    'street food',
+                    'home cooking',
+                    'restaurant vs home food',
+                    'food memories'
+                ]
+            },
+            football: {
+                thisOrThat: [
+                    ['Manchester United', 'Manchester City'],
+                    ['Real Madrid', 'Barcelona'],
+                    ['Premier League', 'La Liga'],
+                    ['Messi', 'Ronaldo'],
+                    ['Arsenal', 'Chelsea'],
+                    ['Liverpool', 'Tottenham'],
+                    ['Champions League', 'World Cup'],
+                    ['Playing football', 'Watching football']
+                ],
+                textPosts: [
+                    'football in Nigeria',
+                    'favorite teams',
+                    'football legends',
+                    'local vs international football',
+                    'football memories',
+                    'Super Eagles',
+                    'football predictions',
+                    'football culture'
+                ]
+            }
+        };
+
+        const thisOrThatTemplates = [
+            "You can only choose one: {option1} or {option2}?",
+            "Pick one and explain why: {option1} vs {option2}",
+            "One has to go forever: {option1} or {option2}?",
+            "If you had to choose: {option1} or {option2}?",
+            "Which would you rather: {option1} or {option2}?",
+            "Choose your side: {option1} or {option2}?",
+            "One must stay, one must go: {option1} vs {option2}",
+            "Team {option1} or Team {option2}? Choose wisely!"
+        ];
+
+        const textPostTemplates = [
+            "What's your take on {topic}? Share your thoughts!",
+            "Which {topic} do you prefer and why?",
+            "What's the best {topic} you've ever experienced?",
+            "If you could change one thing about {topic}, what would it be?",
+            "What's your unpopular opinion about {topic}?",
+            "Share your favorite {topic} memory in the comments!",
+            "What's the most important thing about {topic} to you?",
+            "Which {topic} trend do you think will last?"
+        ];
+
+        function getRandomElement(array) {
+            return array[Math.floor(Math.random() * array.length)];
+        }
+
+        function generateContent() {
+            const topics = document.getElementById('topics').value.split(',').map(t => t.trim().toLowerCase());
+            const audience = document.getElementById('audience').value.toLowerCase();
+            const filters = document.getElementById('filters').value.split(',').map(f => f.trim().toLowerCase());
+            
+            showStatus('🤖 Generating 12 Facebook posts...', 'loading');
+            
+            const posts = [];
+            
+            // Generate 6 picture posts
+            for (let i = 0; i < 6; i++) {
+                const topic = getRandomElement(topics);
+                let options;
+                
+                if (contentIdeas[topic]) {
+                    options = getRandomElement(contentIdeas[topic].thisOrThat);
+                } else {
+                    options = [`Traditional ${topic}`, `Modern ${topic}`];
+                }
+                
+                const template = getRandomElement(thisOrThatTemplates);
+                const caption = template.replace('{option1}', options[0]).replace('{option2}', options[1]);
+                const prompt = `Split screen image showing ${options[0]} on the left side and ${options[1]} on the right side, with 'VS' in the middle, colorful and engaging design, Nigerian context, high quality digital art`;
+                
+                // Check filters
+                const hasNegativeContent = filters.some(filter => 
+                    caption.toLowerCase().includes(filter) || prompt.toLowerCase().includes(filter)
+                );
+                
+                if (!hasNegativeContent) {
+                    posts.push({
+                        type: 'Picture',
+                        topic: topic,
+                        content: caption,
+                        prompt: prompt,
+                        status: 'Waiting'
+                    });
+                }
+            }
+            
+            // Generate 6 text posts
+            for (let i = 0; i < 6; i++) {
+                const topic = getRandomElement(topics);
+                let textTopic;
+                
+                if (contentIdeas[topic]) {
+                    textTopic = getRandomElement(contentIdeas[topic].textPosts);
+                } else {
+                    textTopic = topic;
+                }
+                
+                const template = getRandomElement(textPostTemplates);
+                let content = template.replace('{topic}', textTopic);
+                
+                // Add Nigerian context
+                if (audience.includes('nigeria')) {
+                    if (audience.includes('northern')) {
+                        content += " (Northern Nigeria perspective welcome!)";
+                    } else if (audience.includes('hausa')) {
+                        content += " (Hausa community thoughts needed!)";
+                    } else {
+                        content += " (All Nigerians welcome to share!)";
+                    }
+                }
+                
+                // Check filters
+                const hasNegativeContent = filters.some(filter => 
+                    content.toLowerCase().includes(filter)
+                );
+                
+                if (!hasNegativeContent) {
+                    posts.push({
+                        type: 'Text',
+                        topic: topic,
+                        content: content,
+                        status: 'Pending'
+                    });
+                }
+            }
+            
+            // Store posts globally for "Add to Notion" functionality
+            generatedPosts = posts;
+            displayGeneratedContent(posts);
+        }
+
+        function displayGeneratedContent(posts) {
+            const container = document.getElementById('generatedContent');
+            const picturePosts = posts.filter(p => p.type === 'Picture');
+            const textPosts = posts.filter(p => p.type === 'Text');
+            
+            let html = `
+                <h3>🎉 Generated ${posts.length} Facebook Posts</h3>
+                <p style="margin-bottom: 20px;">Copy this content and use the bulk importer to add to Notion, or format as needed.</p>
+                
+                <h4>🖼️ Picture Posts (${picturePosts.length}) - Status: Waiting</h4>
+            `;
+            
+            picturePosts.forEach((post, index) => {
+                html += `
+                    <div class="post-item">
+                        <div class="post-type">${index + 1}. [PICTURE] ${post.topic.toUpperCase()}</div>
+                        <div class="post-content"><strong>Caption:</strong> ${post.content}</div>
+                        <div class="post-prompt"><strong>Prompt:</strong> ${post.prompt}</div>
+                        <div style="margin-top: 10px; font-size: 0.9rem; color: #28a745;">
+                            <strong>Status:</strong> Waiting (for image generation) | <strong>Content:</strong> Picture
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += `<h4>📝 Text Posts (${textPosts.length}) - Status: Pending</h4>`;
+            
+            textPosts.forEach((post, index) => {
+                html += `
+                    <div class="post-item">
+                        <div class="post-type">${index + 1}. [TEXT] ${post.topic.toUpperCase()}</div>
+                        <div class="post-content"><strong>Content:</strong> ${post.content}</div>
+                        <div style="margin-top: 10px; font-size: 0.9rem; color: #007bff;">
+                            <strong>Status:</strong> Pending (ready to post) | <strong>Content:</strong> Text
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += `
+                <div style="margin-top: 30px; padding: 20px; background: #e9ecef; border-radius: 8px;">
+                    <button onclick="addGeneratedToNotion()" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 12px 25px; border: none; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; width: 100%; margin-bottom: 15px;">
+                        🚀 Add These Posts to Notion
+                    </button>
+                    <h4>📋 Or Copy-Paste Format:</h4>
+                    <textarea readonly style="width: 100%; height: 150px; margin-top: 10px;" onclick="this.select()">`;
+            
+            posts.forEach(post => {
+                if (post.type === 'Picture') {
+                    html += `${post.content} | ${post.content} | ${post.prompt} | Picture\n`;
+                } else {
+                    html += `${post.content} | | | Text\n`;
+                }
+            });
+            
+            html += `</textarea>
+                </div>
+            `;
+            
+            container.innerHTML = html;
+            container.style.display = 'block';
+            
+            showStatus(`✅ Successfully generated ${posts.length} posts! Content is ready to copy.`, 'success');
+        }
+
+        function showStatus(message, type) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = `status ${type}`;
+            status.style.display = 'block';
+        }
+
+        // Store generated posts globally
+        let generatedPosts = [];
+
+        function parseChatGPTContent(content) {
+            const posts = [];
+            const lines = content.trim().split('\n');
+            
+            // Method 1: Try to parse as table format (pipe-separated)
+            if (content.includes('|')) {
+                console.log('Detected table format...');
+                for (const line of lines) {
+                    if (line.includes('|') && !line.trim().startsWith('|---')) {
+                        const parts = line.split('|').map(p => p.trim());
+                        if (parts.length >= 4) {
+                            // Skip header row
+                            if (parts[0].toLowerCase().includes('title') || parts[0].toLowerCase().includes('post')) {
+                                continue;
+                            }
+                            
+                            const postData = {
+                                title: parts[0],
+                                caption: parts[1] || '',
+                                prompt: parts[2] || '',
+                                type: parts[3].toLowerCase() || 'text'
+                            };
+                            
+                            // Determine if it's a picture or text post
+                            if (postData.type.includes('picture') || postData.prompt) {
+                                postData.content_type = 'Picture';
+                                postData.status = 'Waiting';
+                            } else {
+                                postData.content_type = 'Text';
+                                postData.status = 'Pending';
+                            }
+                            
+                            posts.push(postData);
+                        }
+                    }
+                }
+            }
+            // Method 2: Try to parse numbered lists
+            else if (/^\d+\./.test(content)) {
+                console.log('Detected numbered list format...');
+                let currentPost = {};
+                
+                for (const line of lines) {
+                    const trimmedLine = line.trim();
+                    if (!trimmedLine) continue;
+                    
+                    // Check if it's a numbered item
+                    if (/^\d+\./.test(trimmedLine)) {
+                        // Save previous post if exists
+                        if (currentPost.title) {
+                            posts.push(currentPost);
+                        }
+                        
+                        // Start new post
+                        currentPost = {
+                            title: trimmedLine.replace(/^\d+\.\s*/, ''),
+                            caption: '',
+                            prompt: '',
+                            type: 'text',
+                            content_type: 'Text',
+                            status: 'Pending'
+                        };
+                    }
+                    // Look for specific keywords
+                    else if (trimmedLine.toLowerCase().includes('caption:')) {
+                        currentPost.caption = trimmedLine.split(':', 2)[1].trim();
+                    } else if (trimmedLine.toLowerCase().includes('prompt:')) {
+                        currentPost.prompt = trimmedLine.split(':', 2)[1].trim();
+                        currentPost.content_type = 'Picture';
+                        currentPost.status = 'Waiting';
+                    } else if (trimmedLine.toLowerCase().includes('type:')) {
+                        const postType = trimmedLine.split(':', 2)[1].trim().toLowerCase();
+                        currentPost.type = postType;
+                        if (postType.includes('picture')) {
+                            currentPost.content_type = 'Picture';
+                            currentPost.status = 'Waiting';
+                        }
+                    }
+                }
+                
+                // Add the last post
+                if (currentPost.title) {
+                    posts.push(currentPost);
+                }
+            }
+            // Method 3: Simple line-by-line parsing
+            else {
+                console.log('Detected simple text format...');
+                for (const line of lines) {
+                    const trimmedLine = line.trim();
+                    if (trimmedLine && trimmedLine.length > 10) {
+                        posts.push({
+                            title: trimmedLine,
+                            caption: '',
+                            prompt: '',
+                            type: 'text',
+                            content_type: 'Text',
+                            status: 'Pending'
+                        });
+                    }
+                }
+            }
+            
+            return posts;
+        }
+
+        async function addPostToNotion(postData) {
+            const token = document.getElementById('notionToken').value.trim();
+            const databaseId = document.getElementById('databaseId').value.trim();
+            
+            const mainContent = postData.title || postData.caption || '';
+            
+            let pageProperties;
+            
+            if (postData.content_type === 'Picture') {
+                pageProperties = {
+                    'Name': {
+                        'title': [{ 'text': { 'content': mainContent } }]
+                    },
+                    'Status': {
+                        'rich_text': [{ 'text': { 'content': 'Waiting' } }]
+                    },
+                    'Content': {
+                        'rich_text': [{ 'text': { 'content': 'Picture' } }]
+                    },
+                    'Prompt': {
+                        'rich_text': [{ 'text': { 'content': postData.prompt || '' } }]
+                    }
+                };
+            } else {
+                pageProperties = {
+                    'Name': {
+                        'title': [{ 'text': { 'content': mainContent } }]
+                    },
+                    'Status': {
+                        'rich_text': [{ 'text': { 'content': 'Pending' } }]
+                    },
+                    'Content': {
+                        'rich_text': [{ 'text': { 'content': 'Text' } }]
+                    }
+                };
+            }
+            
+            const response = await fetch('https://api.notion.com/v1/pages', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                    'Notion-Version': '2022-06-28'
+                },
+                body: JSON.stringify({
+                    parent: { database_id: databaseId },
+                    properties: pageProperties
+                })
+            });
+            
+            return response.ok;
+        }
+
+        async function addToNotion() {
+            const token = document.getElementById('notionToken').value.trim();
+            const databaseId = document.getElementById('databaseId').value.trim();
+            const chatgptContent = document.getElementById('chatgptContent').value.trim();
+            
+            if (!token || !databaseId) {
+                showStatus('Please fill in Notion Token and Database ID', 'error');
+                return;
+            }
+            
+            if (!chatgptContent) {
+                showStatus('Please paste your ChatGPT content in the textarea above', 'error');
+                return;
+            }
+            
+            showStatus('🔍 Parsing ChatGPT content...', 'loading');
+            
+            const posts = parseChatGPTContent(chatgptContent);
+            
+            if (posts.length === 0) {
+                showStatus('No posts found in the content. Please check the format.', 'error');
+                return;
+            }
+            
+            showStatus(`📤 Adding ${posts.length} posts to Notion...`, 'loading');
+            
+            let successCount = 0;
+            
+            for (let i = 0; i < posts.length; i++) {
+                const post = posts[i];
+                showStatus(`Adding post ${i + 1}/${posts.length}: ${post.title.substring(0, 50)}...`, 'loading');
+                
+                try {
+                    const success = await addPostToNotion(post);
+                    if (success) {
+                        successCount++;
+                    }
+                    
+                    // Small delay to avoid rate limiting
+                    await new Promise(resolve => setTimeout(resolve, 200));
+                } catch (error) {
+                    console.error('Error adding post:', error);
+                }
+            }
+            
+            if (successCount === posts.length) {
+                showStatus(`✅ Successfully added all ${successCount} posts to Notion!`, 'success');
+                document.getElementById('chatgptContent').value = '';
+            } else {
+                showStatus(`⚠️ Added ${successCount}/${posts.length} posts successfully.`, 'error');
+            }
+        }
+
+        async function addGeneratedToNotion() {
+            const token = document.getElementById('notionToken').value.trim();
+            const databaseId = document.getElementById('databaseId').value.trim();
+            
+            if (!token || !databaseId) {
+                showStatus('Please fill in Notion Token and Database ID', 'error');
+                return;
+            }
+            
+            if (generatedPosts.length === 0) {
+                showStatus('No generated posts to add. Please generate content first.', 'error');
+                return;
+            }
+            
+            showStatus(`📤 Adding ${generatedPosts.length} generated posts to Notion...`, 'loading');
+            
+            let successCount = 0;
+            
+            for (let i = 0; i < generatedPosts.length; i++) {
+                const post = generatedPosts[i];
+                showStatus(`Adding post ${i + 1}/${generatedPosts.length}: ${post.content.substring(0, 50)}...`, 'loading');
+                
+                try {
+                    const postData = {
+                        title: post.content,
+                        caption: post.content,
+                        prompt: post.prompt || '',
+                        content_type: post.type,
+                        status: post.status
+                    };
+                    
+                    const success = await addPostToNotion(postData);
+                    if (success) {
+                        successCount++;
+                    }
+                    
+                    // Small delay to avoid rate limiting
+                    await new Promise(resolve => setTimeout(resolve, 200));
+                } catch (error) {
+                    console.error('Error adding post:', error);
+                }
+            }
+            
+            if (successCount === generatedPosts.length) {
+                showStatus(`✅ Successfully added all ${successCount} generated posts to Notion!`, 'success');
+                generatedPosts = [];
+                document.getElementById('generatedContent').style.display = 'none';
+            } else {
+                showStatus(`⚠️ Added ${successCount}/${generatedPosts.length} posts successfully.`, 'error');
+            }
+        }
+    </script>
+</body>
+</html> 
