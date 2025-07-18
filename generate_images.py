@@ -134,7 +134,7 @@ def save_image_locally(image_data, filename):
         f.write(image_data)
     
     # Return the GitHub URL where the image will be accessible
-    github_url = f'https://raw.githubusercontent.com/{GITHUB_REPO}/master/images/{filename}'
+    github_url = f'https://raw.githubusercontent.com/{GITHUB_REPO}/main/images/{filename}'
     print(f"✅ Image saved locally and will be available at: {github_url}")
     return github_url
 
