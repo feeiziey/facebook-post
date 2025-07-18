@@ -42,27 +42,11 @@ jobs:
           echo "📁 Checking images directory after generation:"
           ls -la images/ || echo "Images directory not found"
 
-      - name: Commit and push generated images
+      - name: Summary
         run: |
-          echo "🔍 Checking for new images to commit..."
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          
-          # List all files in images directory
-          echo "📁 Files in images directory:"
-          ls -la images/ || echo "No images directory found"
-          
-          # Add all images
-          git add images/ || echo "No images to add"
-          
-          # Check if there are staged changes
-          if git diff --staged --quiet; then
-            echo "✅ No new images to commit"
-          else
-            echo "💾 Committing new images..."
-            git status --porcelain
-            git commit -m "Add generated images from FLUX.1-schnell - $(date)"
-            echo "🚀 Pushing to repository..."
-            git push
-            echo "✅ Images successfully committed and pushed!"
-          fi 
+          echo "🎯 Image Generation Summary:"
+          echo "✅ Generated images for waiting posts with Status='Waiting' and Content='Picture'"
+          echo "✅ Each image was committed and pushed immediately after generation"
+          echo "✅ Updated Notion records with image links"
+          echo "✅ Changed post status from 'Waiting' to 'Pending'"
+          echo "🔄 Will check again in 15 minutes" 

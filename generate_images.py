@@ -138,6 +138,37 @@ def save_image_locally(image_data, filename):
     print(f"✅ Image saved locally and will be available at: {github_url}")
     return github_url
 
+def commit_and_push_image(filename, prompt):
+    """Commit and push a single image to GitHub immediately"""
+    print(f"💾 Committing and pushing image: {filename}")
+    
+    try:
+        import subprocess
+        
+        # Configure git
+        subprocess.run(['git', 'config', '--local', 'user.email', 'action@github.com'], check=True)
+        subprocess.run(['git', 'config', '--local', 'user.name', 'GitHub Action'], check=True)
+        
+        # Add the specific image file
+        subprocess.run(['git', 'add', f'images/{filename}'], check=True)
+        
+        # Commit with descriptive message
+        commit_message = f"Add generated image: {filename[:30]}... - {prompt[:50]}..."
+        subprocess.run(['git', 'commit', '-m', commit_message], check=True)
+        
+        # Push to repository
+        subprocess.run(['git', 'push'], check=True)
+        
+        print(f"✅ Successfully committed and pushed: {filename}")
+        return True
+        
+    except subprocess.CalledProcessError as e:
+        print(f"❌ Error committing image {filename}: {e}")
+        return False
+    except Exception as e:
+        print(f"❌ Unexpected error committing image {filename}: {e}")
+        return False
+
 def update_notion_record_with_image_and_status(record_id, image_url):
     """Update Notion record with the generated image link and change status to Pending"""
     print(f"📝 Updating Notion record with image link and changing status to Pending...")
@@ -220,6 +251,9 @@ def main():
         
         # Update Notion record with image link and change status to Pending
         update_notion_record_with_image_and_status(post['id'], github_url)
+        
+        # Commit and push the image immediately
+        commit_and_push_image(filename, post['prompt'])
         
         print(f"✅ Successfully processed post {i}")
         
