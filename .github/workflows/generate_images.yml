@@ -35,7 +35,7 @@ jobs:
         env:
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
           NOTION_BANK_DB_ID: ${{ secrets.NOTION_BANK_DB_ID }}
-          STABLE_HORDE_API_KEY: ${{ secrets.STABLE_HORDE_API_KEY }}
+          HUGGINGFACE_TOKEN: ${{ secrets.HUGGINGFACE_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python generate_images.py
 
