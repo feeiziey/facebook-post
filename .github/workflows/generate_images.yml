@@ -31,23 +31,38 @@ jobs:
           nslookup stablehorde.net || echo "DNS resolution failed, but continuing..."
 
       - name: Generate images for pending picture posts
-        continue-on-error: true
         env:
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
           NOTION_BANK_DB_ID: ${{ secrets.NOTION_BANK_DB_ID }}
           HUGGINGFACE_TOKEN: ${{ secrets.HUGGINGFACE_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: python generate_images.py
+        run: |
+          echo "🚀 Starting image generation..."
+          python generate_images.py
+          echo "📁 Checking images directory after generation:"
+          ls -la images/ || echo "Images directory not found"
 
       - name: Commit and push generated images
-        continue-on-error: true
         run: |
+          echo "🔍 Checking for new images to commit..."
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git add images/ || echo "No images directory found"
+          
+          # List all files in images directory
+          echo "📁 Files in images directory:"
+          ls -la images/ || echo "No images directory found"
+          
+          # Add all images
+          git add images/ || echo "No images to add"
+          
+          # Check if there are staged changes
           if git diff --staged --quiet; then
-            echo "No new images to commit"
+            echo "✅ No new images to commit"
           else
-            git commit -m "Add generated images from Stable Horde"
+            echo "💾 Committing new images..."
+            git status --porcelain
+            git commit -m "Add generated images from FLUX.1-schnell - $(date)"
+            echo "🚀 Pushing to repository..."
             git push
+            echo "✅ Images successfully committed and pushed!"
           fi 
