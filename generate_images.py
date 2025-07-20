@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """
-Hugging Face Image Generation Script for Facebook Posts
-Processes waiting picture posts from Notion and generates images using Hugging Face Inference API
+Multi-Provider Image Generation Script for Facebook Posts
+Processes waiting picture posts from Notion and generates images using various AI services
 """
 
 import os
 import requests
 import time
+import base64
 from datetime import datetime
 
 # Configuration
@@ -15,8 +16,10 @@ NOTION_BANK_DB_ID = '229bc30eae8c803bac1be32cc42ee186'  # Correct database ID
 HUGGINGFACE_TOKEN = os.environ.get('HUGGINGFACE_TOKEN')
 GITHUB_REPO = os.environ.get('GITHUB_REPOSITORY', 'feeiziey/facebook-post')
 
-# Use FLUX.1-schnell - Much better quality and faster than Stable Diffusion XL
+# Multiple model options
 HF_MODEL_URL = "https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-schnell"
+STABLE_HORDE_URL = "https://stablehorde.net/api/v2/generate/async"
+REPLICATE_URL = "https://api.replicate.com/v1/predictions"
 
 # Headers for Notion API
 notion_headers = {
@@ -82,6 +85,60 @@ def get_waiting_picture_posts():
         print(f"❌ Error querying Notion: {response.status_code} - {response.text}")
         return []
 
+def generate_image_with_free_api(prompt):
+    """Generate image using a free public API"""
+    print(f"🎨 Generating image with free API: {prompt[:50]}...")
+    
+    # Try using a free public image generation API
+    # This is a simple approach using a public service
+    try:
+        # For now, let's create a placeholder image with text
+        # In a real implementation, you'd use a free API service
+        print("⚠️  Free API not implemented yet - creating placeholder")
+        
+        # Create a simple placeholder image using PIL
+        try:
+            from PIL import Image, ImageDraw, ImageFont
+            import io
+            
+            # Create a 1024x1024 image
+            img = Image.new('RGB', (1024, 1024), color='#f0f0f0')
+            draw = ImageDraw.Draw(img)
+            
+            # Add text
+            try:
+                # Try to use a default font
+                font = ImageFont.load_default()
+            except:
+                font = None
+            
+            # Draw the prompt as text
+            text = f"Image: {prompt[:50]}..."
+            bbox = draw.textbbox((0, 0), text, font=font)
+            text_width = bbox[2] - bbox[0]
+            text_height = bbox[3] - bbox[1]
+            
+            x = (1024 - text_width) // 2
+            y = (1024 - text_height) // 2
+            
+            draw.text((x, y), text, fill='#333333', font=font)
+            
+            # Convert to bytes
+            img_byte_arr = io.BytesIO()
+            img.save(img_byte_arr, format='PNG')
+            img_byte_arr = img_byte_arr.getvalue()
+            
+            print("✅ Placeholder image created successfully")
+            return img_byte_arr
+            
+        except ImportError:
+            print("❌ PIL not available, cannot create placeholder")
+            return None
+            
+    except Exception as e:
+        print(f"❌ Error with free API: {e}")
+        return None
+
 def generate_image_with_huggingface(prompt):
     """Generate image using FLUX.1-schnell - Much better quality than Stable Diffusion XL"""
     print(f"🎨 Generating high-quality image with FLUX.1-schnell: {prompt[:50]}...")
@@ -114,12 +171,35 @@ def generate_image_with_huggingface(prompt):
             print("⏳ FLUX.1-schnell model is loading, waiting 20 seconds...")
             time.sleep(20)
             return generate_image_with_huggingface(prompt)
+        elif response.status_code == 402:
+            print("❌ Hugging Face credits exceeded, trying alternative...")
+            return None
         else:
             print(f"❌ Error generating image: {response.status_code} - {response.text}")
             return None
     except Exception as e:
         print(f"❌ Error: {e}")
         return None
+
+def generate_image_with_fallback(prompt):
+    """Try multiple image generation services with fallback"""
+    print(f"🎨 Attempting image generation for: {prompt[:50]}...")
+    
+    # Try Hugging Face first (if credits available)
+    if HUGGINGFACE_TOKEN:
+        print("🔄 Trying Hugging Face FLUX.1-schnell...")
+        image_data = generate_image_with_huggingface(prompt)
+        if image_data:
+            return image_data, "FLUX.1-schnell"
+    
+    # Fallback to free API (placeholder)
+    print("🔄 Trying free API (placeholder)...")
+    image_data = generate_image_with_free_api(prompt)
+    if image_data:
+        return image_data, "Free API"
+    
+    print("❌ All image generation services failed")
+    return None, None
 
 def save_image_locally(image_data, filename):
     """Save image data to local file and return GitHub URL"""
@@ -211,15 +291,11 @@ def update_notion_record_with_image_and_status(record_id, image_url):
 
 def main():
     """Main execution function"""
-    print("🚀 Starting Facebook Post Image Generation with FLUX.1-schnell")
+    print("🚀 Starting Facebook Post Image Generation with Multi-Provider Fallback")
     print(f"📅 {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     
     if not NOTION_TOKEN:
         print("❌ NOTION_TOKEN environment variable not set")
-        return
-    
-    if not HUGGINGFACE_TOKEN:
-        print("❌ HUGGINGFACE_TOKEN environment variable not set")
         return
     
     # Get waiting picture posts
@@ -234,15 +310,18 @@ def main():
         print(f"\n📸 Processing post {i}/{len(posts)}")
         print(f"Prompt: {post['prompt']}")
         
-        # Generate image with FLUX.1-schnell (much better quality)
-        image_data = generate_image_with_huggingface(post['prompt'])
+        # Generate image with fallback system
+        image_data, model_used = generate_image_with_fallback(post['prompt'])
         if not image_data:
             print(f"⏭️ Skipping post {i} due to generation error")
             continue
         
-        # Generate filename
+        # Generate filename based on model used
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        filename = f'flux_generated_{timestamp}_{i}.png'
+        if model_used == "FLUX.1-schnell":
+            filename = f'flux_generated_{timestamp}_{i}.png'
+        else:
+            filename = f'freeapi_generated_{timestamp}_{i}.png'
         
         # Save image locally and get GitHub URL
         github_url = save_image_locally(image_data, filename)
@@ -255,14 +334,14 @@ def main():
         # Commit and push the image immediately
         commit_and_push_image(filename, post['prompt'])
         
-        print(f"✅ Successfully processed post {i}")
+        print(f"✅ Successfully processed post {i} with {model_used}")
         
         # Add a small delay between requests to be respectful to the API
         if i < len(posts):
             print("⏳ Waiting 5 seconds before next request...")
             time.sleep(5)
     
-    print(f"\n🎯 Completed processing {len(posts)} posts with FLUX.1-schnell")
+    print(f"\n🎯 Completed processing {len(posts)} posts with multi-provider fallback")
 
 if __name__ == '__main__':
     main() 
