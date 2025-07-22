@@ -120,6 +120,9 @@ def generate_image_with_free_api(prompt):
         font = ImageFont.truetype(font_path, font_size)
         tag_font = ImageFont.truetype(font_path, tag_font_size)
         print(f"✅ Using font: {font_path}")
+        # Create image and draw object
+        img = Image.new('RGB', (width, height), color=bg_color)
+        draw = ImageDraw.Draw(img)
         # Word wrap prompt
         def text_width_height(text, font):
             bbox = font.getbbox(text)
