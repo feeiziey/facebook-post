@@ -93,33 +93,49 @@ def generate_image_with_free_api(prompt):
     try:
         from PIL import Image, ImageDraw, ImageFont
         import io
+        import os
         # Image settings
         width, height = 1024, 1024
         bg_color = '#111111'
         text_color = '#FFFFFF'
         tag_color = '#FFFFFF'
         accent_color = '#F5C242'  # Gold accent for the line
-        font_size = 56
-        tag_font_size = 32
-        margin = 80
+        font_size = 80  # Reduced from 120
+        tag_font_size = 28  # Much smaller for tag
+        margin = 20
+        line_spacing = 24  # Add more line spacing
         # Create image
         img = Image.new('RGB', (width, height), color=bg_color)
         draw = ImageDraw.Draw(img)
-        # Load fonts
-        try:
-            font = ImageFont.truetype("arial.ttf", font_size)
-            tag_font = ImageFont.truetype("arial.ttf", tag_font_size)
-        except:
+        # Try to use Arial or Verdana TTF font
+        font = tag_font = None
+        font_used = None
+        for ttf in ["arial.ttf", "Arial.ttf", "verdana.ttf", "Verdana.ttf"]:
+            try:
+                font = ImageFont.truetype(ttf, font_size)
+                tag_font = ImageFont.truetype(ttf, tag_font_size)
+                font_used = ttf
+                print(f"✅ Using font: {ttf}")
+                break
+            except Exception as e:
+                continue
+        if font is None or tag_font is None:
+            print("⚠️  No TTF font found. Text will be tiny!")
             font = ImageFont.load_default()
             tag_font = ImageFont.load_default()
         # Word wrap prompt
+        def text_width_height(text, font):
+            bbox = font.getbbox(text)
+            w = bbox[2] - bbox[0]
+            h = bbox[3] - bbox[1]
+            return w, h
         def wrap_text(text, font, max_width):
             words = text.split()
             lines = []
             line = ''
             for word in words:
                 test_line = f'{line} {word}'.strip()
-                w, _ = font.getsize(test_line)
+                w, _ = text_width_height(test_line, font)
                 if w <= max_width:
                     line = test_line
                 else:
@@ -130,12 +146,13 @@ def generate_image_with_free_api(prompt):
             return lines
         quote_lines = wrap_text(prompt, font, width - 2 * margin)
         # Calculate text height
-        line_height = font.getsize('A')[1] + 10
+        _, line_height = text_width_height('A', font)
+        line_height += line_spacing
         total_text_height = line_height * len(quote_lines)
         # Draw prompt text centered
         y = (height - total_text_height) // 2
         for line in quote_lines:
-            w, _ = font.getsize(line)
+            w, _ = text_width_height(line, font)
             x = (width - w) // 2
             draw.text((x, y), line, fill=text_color, font=font)
             y += line_height
@@ -146,7 +163,7 @@ def generate_image_with_free_api(prompt):
         draw.line([(line_x, tag_y), (line_x + line_width, tag_y)], fill=accent_color, width=4)
         # Draw tag text
         tag_text = "DAILY WONDERWISE"
-        tag_w, tag_h = tag_font.getsize(tag_text)
+        tag_w, tag_h = text_width_height(tag_text, tag_font)
         tag_x = (width - tag_w) // 2
         draw.text((tag_x, tag_y + 16), tag_text, fill=tag_color, font=tag_font)
         # Save to bytes
