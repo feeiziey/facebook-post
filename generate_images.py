@@ -119,7 +119,7 @@ def generate_image_with_free_api(prompt):
             line = ''
             for word in words:
                 test_line = f'{line} {word}'.strip()
-                w, _ = draw.textsize(test_line, font=font)
+                w, _ = font.getsize(test_line)
                 if w <= max_width:
                     line = test_line
                 else:
@@ -135,7 +135,7 @@ def generate_image_with_free_api(prompt):
         # Draw prompt text centered
         y = (height - total_text_height) // 2
         for line in quote_lines:
-            w, _ = draw.textsize(line, font=font)
+            w, _ = font.getsize(line)
             x = (width - w) // 2
             draw.text((x, y), line, fill=text_color, font=font)
             y += line_height
@@ -146,7 +146,7 @@ def generate_image_with_free_api(prompt):
         draw.line([(line_x, tag_y), (line_x + line_width, tag_y)], fill=accent_color, width=4)
         # Draw tag text
         tag_text = "DAILY WONDERWISE"
-        tag_w, tag_h = draw.textsize(tag_text, font=tag_font)
+        tag_w, tag_h = tag_font.getsize(tag_text)
         tag_x = (width - tag_w) // 2
         draw.text((tag_x, tag_y + 16), tag_text, fill=tag_color, font=tag_font)
         # Save to bytes
