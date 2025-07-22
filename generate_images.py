@@ -71,14 +71,15 @@ def get_waiting_picture_posts():
         for record in data['results']:
             # Extract properties
             prompt_prop = record['properties'].get('Prompt', {})
-            
+            caption_prop = record['properties'].get('Caption', {})
             prompt = prompt_prop['title'][0]['text']['content'] if prompt_prop.get('title') else ''
-            
+            caption = caption_prop['rich_text'][0]['text']['content'] if caption_prop.get('rich_text') else ''
             # Only process if we have a prompt
             if prompt:
                 posts.append({
                     'id': record['id'],
-                    'prompt': prompt
+                    'prompt': prompt,
+                    'caption': caption
                 })
         
         print(f"📋 Found {len(posts)} waiting picture posts")
@@ -381,7 +382,7 @@ def main():
         print(f"Prompt: {post['prompt']}")
         
         # Generate image with fallback system
-        image_data, model_used = generate_image_with_fallback(post['prompt'], post['prompt']) # Pass prompt as both prompt and caption for quote-style
+        image_data, model_used = generate_image_with_fallback(post['prompt'], post.get('caption', post['prompt']))
         if not image_data:
             print(f"⏭️ Skipping post {i} due to generation error")
             continue
