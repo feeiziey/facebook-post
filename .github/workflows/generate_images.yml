@@ -42,6 +42,7 @@ jobs:
           NOTION_BANK_DB_ID: ${{ secrets.NOTION_BANK_DB_ID }}
           HUGGINGFACE_TOKEN: ${{ secrets.HUGGINGFACE_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DEEPAI_API_KEY: 6eb4847b-8a0f-4df6-a052-9514a902c0a3
         run: |
           echo "🚀 Starting image generation..."
           python generate_images.py
