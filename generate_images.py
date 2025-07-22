@@ -87,9 +87,9 @@ def get_waiting_picture_posts():
         print(f"❌ Error querying Notion: {response.status_code} - {response.text}")
         return []
 
-def generate_image_with_free_api(prompt):
-    """Generate a quote-style image with the prompt and a 'Daily Wonderwise' tag."""
-    print(f"🎨 Generating quote-style fallback image: {prompt[:50]}...")
+def generate_image_with_free_api(caption):
+    """Generate a quote-style image with the caption and a 'Daily Wonderwise' tag."""
+    print(f"🎨 Generating quote-style fallback image: {caption[:50]}...")
     try:
         from PIL import Image, ImageDraw, ImageFont
         import io
@@ -103,7 +103,7 @@ def generate_image_with_free_api(prompt):
         accent_color = '#F5C242'  # Gold accent for the line
         font_size = 80
         tag_font_size = 28
-        margin = 20
+        margin = 80  # Increased margin for better padding
         line_spacing = 24
         # Ensure fonts directory exists
         font_dir = os.path.join(os.path.dirname(__file__), 'fonts')
@@ -123,7 +123,7 @@ def generate_image_with_free_api(prompt):
         # Create image and draw object
         img = Image.new('RGB', (width, height), color=bg_color)
         draw = ImageDraw.Draw(img)
-        # Word wrap prompt
+        # Word wrap caption
         def text_width_height(text, font):
             bbox = font.getbbox(text)
             w = bbox[2] - bbox[0]
@@ -144,12 +144,12 @@ def generate_image_with_free_api(prompt):
             if line:
                 lines.append(line)
             return lines
-        quote_lines = wrap_text(prompt, font, width - 2 * margin)
+        quote_lines = wrap_text(caption, font, width - 2 * margin)
         # Calculate text height
         _, line_height = text_width_height('A', font)
         line_height += line_spacing
         total_text_height = line_height * len(quote_lines)
-        # Draw prompt text centered
+        # Draw caption text centered
         y = (height - total_text_height) // 2
         for line in quote_lines:
             w, _ = text_width_height(line, font)
@@ -253,8 +253,9 @@ def generate_image_with_deepai(prompt):
         print(f"❌ Error with DeepAI: {e}")
         return None
 
-def generate_image_with_fallback(prompt):
-    """Try Hugging Face, then fallback to quote-style image only."""
+# Update fallback logic to accept both prompt and caption
+def generate_image_with_fallback(prompt, caption=None):
+    """Try Hugging Face, then fallback to quote-style image using caption if available."""
     print(f"🎨 Attempting image generation for: {prompt[:50]}...")
     # Try Hugging Face first (if credits available)
     if HUGGINGFACE_TOKEN:
@@ -262,9 +263,9 @@ def generate_image_with_fallback(prompt):
         image_data = generate_image_with_huggingface(prompt)
         if image_data:
             return image_data, "FLUX.1-schnell"
-    # Fallback to quote-style image
+    # Fallback to quote-style image using caption if provided, else prompt
     print("🔄 All real image APIs unavailable, generating quote-style fallback image...")
-    image_data = generate_image_with_free_api(prompt)
+    image_data = generate_image_with_free_api(caption if caption else prompt)
     if image_data:
         return image_data, "Free API"
     print("❌ All image generation services failed")
@@ -380,7 +381,7 @@ def main():
         print(f"Prompt: {post['prompt']}")
         
         # Generate image with fallback system
-        image_data, model_used = generate_image_with_fallback(post['prompt'])
+        image_data, model_used = generate_image_with_fallback(post['prompt'], post['prompt']) # Pass prompt as both prompt and caption for quote-style
         if not image_data:
             print(f"⏭️ Skipping post {i} due to generation error")
             continue
