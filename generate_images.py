@@ -88,57 +88,78 @@ def get_waiting_picture_posts():
         return []
 
 def generate_image_with_free_api(prompt):
-    """Generate image using a free public API"""
-    print(f"🎨 Generating image with free API: {prompt[:50]}...")
-    
-    # Try using a free public image generation API
-    # This is a simple approach using a public service
+    """Generate a quote-style image with the prompt and a 'Daily Wonderwise' tag."""
+    print(f"🎨 Generating quote-style fallback image: {prompt[:50]}...")
     try:
-        # For now, let's create a placeholder image with text
-        # In a real implementation, you'd use a free API service
-        print("⚠️  Free API not implemented yet - creating placeholder")
-        
-        # Create a simple placeholder image using PIL
+        from PIL import Image, ImageDraw, ImageFont
+        import io
+        # Image settings
+        width, height = 1024, 1024
+        bg_color = '#111111'
+        text_color = '#FFFFFF'
+        tag_color = '#FFFFFF'
+        accent_color = '#F5C242'  # Gold accent for the line
+        font_size = 56
+        tag_font_size = 32
+        margin = 80
+        # Create image
+        img = Image.new('RGB', (width, height), color=bg_color)
+        draw = ImageDraw.Draw(img)
+        # Load fonts
         try:
-            from PIL import Image, ImageDraw, ImageFont
-            import io
-            
-            # Create a 1024x1024 image
-            img = Image.new('RGB', (1024, 1024), color='#f0f0f0')
-            draw = ImageDraw.Draw(img)
-            
-            # Add text
-            try:
-                # Try to use a default font
-                font = ImageFont.load_default()
-            except:
-                font = None
-            
-            # Draw the prompt as text
-            text = f"Image: {prompt[:50]}..."
-            bbox = draw.textbbox((0, 0), text, font=font)
-            text_width = bbox[2] - bbox[0]
-            text_height = bbox[3] - bbox[1]
-            
-            x = (1024 - text_width) // 2
-            y = (1024 - text_height) // 2
-            
-            draw.text((x, y), text, fill='#333333', font=font)
-            
-            # Convert to bytes
-            img_byte_arr = io.BytesIO()
-            img.save(img_byte_arr, format='PNG')
-            img_byte_arr = img_byte_arr.getvalue()
-            
-            print("✅ Placeholder image created successfully")
-            return img_byte_arr
-            
-        except ImportError:
-            print("❌ PIL not available, cannot create placeholder")
-            return None
-            
+            font = ImageFont.truetype("arial.ttf", font_size)
+            tag_font = ImageFont.truetype("arial.ttf", tag_font_size)
+        except:
+            font = ImageFont.load_default()
+            tag_font = ImageFont.load_default()
+        # Word wrap prompt
+        def wrap_text(text, font, max_width):
+            words = text.split()
+            lines = []
+            line = ''
+            for word in words:
+                test_line = f'{line} {word}'.strip()
+                w, _ = draw.textsize(test_line, font=font)
+                if w <= max_width:
+                    line = test_line
+                else:
+                    lines.append(line)
+                    line = word
+            if line:
+                lines.append(line)
+            return lines
+        quote_lines = wrap_text(prompt, font, width - 2 * margin)
+        # Calculate text height
+        line_height = font.getsize('A')[1] + 10
+        total_text_height = line_height * len(quote_lines)
+        # Draw prompt text centered
+        y = (height - total_text_height) // 2
+        for line in quote_lines:
+            w, _ = draw.textsize(line, font=font)
+            x = (width - w) // 2
+            draw.text((x, y), line, fill=text_color, font=font)
+            y += line_height
+        # Draw accent line above tag
+        tag_y = height - margin - tag_font_size - 30
+        line_width = 80
+        line_x = (width - line_width) // 2
+        draw.line([(line_x, tag_y), (line_x + line_width, tag_y)], fill=accent_color, width=4)
+        # Draw tag text
+        tag_text = "DAILY WONDERWISE"
+        tag_w, tag_h = draw.textsize(tag_text, font=tag_font)
+        tag_x = (width - tag_w) // 2
+        draw.text((tag_x, tag_y + 16), tag_text, fill=tag_color, font=tag_font)
+        # Save to bytes
+        img_byte_arr = io.BytesIO()
+        img.save(img_byte_arr, format='PNG')
+        img_byte_arr = img_byte_arr.getvalue()
+        print("✅ Quote-style fallback image created successfully")
+        return img_byte_arr
+    except ImportError:
+        print("❌ PIL not available, cannot create quote-style fallback image")
+        return None
     except Exception as e:
-        print(f"❌ Error with free API: {e}")
+        print(f"❌ Error creating quote-style fallback image: {e}")
         return None
 
 def generate_image_with_huggingface(prompt):
@@ -216,7 +237,7 @@ def generate_image_with_deepai(prompt):
         return None
 
 def generate_image_with_fallback(prompt):
-    """Try multiple image generation services with fallback"""
+    """Try Hugging Face, then fallback to quote-style image only."""
     print(f"🎨 Attempting image generation for: {prompt[:50]}...")
     # Try Hugging Face first (if credits available)
     if HUGGINGFACE_TOKEN:
@@ -224,14 +245,8 @@ def generate_image_with_fallback(prompt):
         image_data = generate_image_with_huggingface(prompt)
         if image_data:
             return image_data, "FLUX.1-schnell"
-    # Fallback to DeepAI
-    if DEEPAI_API_KEY:
-        print("🔄 Trying DeepAI (text2img)...")
-        image_data = generate_image_with_deepai(prompt)
-        if image_data:
-            return image_data, "DeepAI"
-    # Fallback to free API (placeholder)
-    print("🔄 Trying free API (placeholder)...")
+    # Fallback to quote-style image
+    print("🔄 All real image APIs unavailable, generating quote-style fallback image...")
     image_data = generate_image_with_free_api(prompt)
     if image_data:
         return image_data, "Free API"
@@ -357,10 +372,10 @@ def main():
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         if model_used == "FLUX.1-schnell":
             filename = f'flux_generated_{timestamp}_{i}.png'
-        elif model_used == "DeepAI":
-            filename = f'deepai_generated_{timestamp}_{i}.png'
-        else:
+        elif model_used == "Free API":
             filename = f'freeapi_generated_{timestamp}_{i}.png'
+        else:
+            filename = f'quote_generated_{timestamp}_{i}.png' # Changed filename for quote-style
         
         # Save image locally and get GitHub URL
         github_url = save_image_locally(image_data, filename)
