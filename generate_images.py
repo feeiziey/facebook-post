@@ -94,35 +94,32 @@ def generate_image_with_free_api(prompt):
         from PIL import Image, ImageDraw, ImageFont
         import io
         import os
+        import requests
         # Image settings
         width, height = 1024, 1024
         bg_color = '#111111'
         text_color = '#FFFFFF'
         tag_color = '#FFFFFF'
         accent_color = '#F5C242'  # Gold accent for the line
-        font_size = 80  # Reduced from 120
-        tag_font_size = 28  # Much smaller for tag
+        font_size = 80
+        tag_font_size = 28
         margin = 20
-        line_spacing = 24  # Add more line spacing
-        # Create image
-        img = Image.new('RGB', (width, height), color=bg_color)
-        draw = ImageDraw.Draw(img)
-        # Try to use Arial or Verdana TTF font
-        font = tag_font = None
-        font_used = None
-        for ttf in ["arial.ttf", "Arial.ttf", "verdana.ttf", "Verdana.ttf"]:
-            try:
-                font = ImageFont.truetype(ttf, font_size)
-                tag_font = ImageFont.truetype(ttf, tag_font_size)
-                font_used = ttf
-                print(f"✅ Using font: {ttf}")
-                break
-            except Exception as e:
-                continue
-        if font is None or tag_font is None:
-            print("⚠️  No TTF font found. Text will be tiny!")
-            font = ImageFont.load_default()
-            tag_font = ImageFont.load_default()
+        line_spacing = 24
+        # Ensure fonts directory exists
+        font_dir = os.path.join(os.path.dirname(__file__), 'fonts')
+        os.makedirs(font_dir, exist_ok=True)
+        font_path = os.path.join(font_dir, 'DejaVuSans-Bold.ttf')
+        # Download font if not present
+        if not os.path.exists(font_path):
+            print(f"⬇️  Downloading DejaVuSans-Bold.ttf to {font_path} ...")
+            url = "https://github.com/dejavu-fonts/dejavu-fonts/raw/master/ttf/DejaVuSans-Bold.ttf"
+            r = requests.get(url)
+            with open(font_path, 'wb') as f:
+                f.write(r.content)
+        # Load font
+        font = ImageFont.truetype(font_path, font_size)
+        tag_font = ImageFont.truetype(font_path, tag_font_size)
+        print(f"✅ Using font: {font_path}")
         # Word wrap prompt
         def text_width_height(text, font):
             bbox = font.getbbox(text)
