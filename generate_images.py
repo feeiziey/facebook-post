@@ -34,6 +34,8 @@ hf_headers = {
     'Content-Type': 'application/json'
 }
 
+DEEPAI_API_KEY = os.environ.get('DEEPAI_API_KEY')
+
 def get_waiting_picture_posts():
     """Get all waiting picture posts from Notion"""
     print("🔍 Searching for waiting picture posts...")
@@ -181,23 +183,58 @@ def generate_image_with_huggingface(prompt):
         print(f"❌ Error: {e}")
         return None
 
+def generate_image_with_deepai(prompt):
+    """Generate image using DeepAI text2img API"""
+    print(f"🎨 Generating image with DeepAI: {prompt[:50]}...")
+    if not DEEPAI_API_KEY:
+        print("❌ DeepAI API key not set. Skipping DeepAI fallback.")
+        return None
+    try:
+        response = requests.post(
+            "https://api.deepai.org/api/text2img",
+            data={'text': prompt},
+            headers={'api-key': DEEPAI_API_KEY},
+            timeout=60
+        )
+        if response.status_code == 200:
+            result = response.json()
+            image_url = result.get('output_url')
+            if image_url:
+                img_response = requests.get(image_url, timeout=60)
+                if img_response.status_code == 200:
+                    print("✅ Image generated successfully with DeepAI!")
+                    return img_response.content
+                else:
+                    print(f"❌ Failed to download DeepAI image: {img_response.status_code}")
+            else:
+                print(f"❌ DeepAI did not return an image URL: {result}")
+        else:
+            print(f"❌ Error from DeepAI: {response.status_code} - {response.text}")
+        return None
+    except Exception as e:
+        print(f"❌ Error with DeepAI: {e}")
+        return None
+
 def generate_image_with_fallback(prompt):
     """Try multiple image generation services with fallback"""
     print(f"🎨 Attempting image generation for: {prompt[:50]}...")
-    
     # Try Hugging Face first (if credits available)
     if HUGGINGFACE_TOKEN:
         print("🔄 Trying Hugging Face FLUX.1-schnell...")
         image_data = generate_image_with_huggingface(prompt)
         if image_data:
             return image_data, "FLUX.1-schnell"
-    
+    # Fallback to DeepAI
+    if DEEPAI_API_KEY:
+        print("🔄 Trying DeepAI (text2img)...")
+        image_data = generate_image_with_deepai(prompt)
+        if image_data:
+            return image_data, "DeepAI"
     # Fallback to free API (placeholder)
     print("🔄 Trying free API (placeholder)...")
     image_data = generate_image_with_free_api(prompt)
     if image_data:
         return image_data, "Free API"
-    
     print("❌ All image generation services failed")
     return None, None
 
@@ -320,6 +357,8 @@ def main():
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         if model_used == "FLUX.1-schnell":
             filename = f'flux_generated_{timestamp}_{i}.png'
+        elif model_used == "DeepAI":
+            filename = f'deepai_generated_{timestamp}_{i}.png'
         else:
             filename = f'freeapi_generated_{timestamp}_{i}.png'
         
